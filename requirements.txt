@@ -1,2 +1,2 @@
-pip install bcrypt
-pip install pandas openpyxl
+bcrypt
+pandas openpyxl
