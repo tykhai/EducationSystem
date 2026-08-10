@@ -1025,48 +1025,4 @@ EDITOR_TYPES = {
     "equation": equation_editor,
     "simple": simple_math_editor,
 }
-    """
-    Tạo bộ gõ công thức Visual Math Editor (MathLive)
-    Trả về chuỗi LaTeX khi học sinh gõ.
-    """
-    math_editor_html = """
-    <!-- Nạp thư viện MathLive từ CDN -->
-    <script src="https://unpkg.com/mathlive"></script>
-    <link rel="stylesheet" href="https://unpkg.com/mathlive/dist/mathlive-static.css" />
     
-    <div style="font-family: sans-serif; margin-bottom: 5px;">
-        <label style="font-size: 14px; font-weight: bold; color: #333;">
-            ✍️ Nhập công thức / Lời giải toán học:
-        </label>
-    </div>
-    
-    <!-- Khung gõ Visual Math -->
-    <math-field id="formula-input" style="
-        font-size: 1.2rem;
-        padding: 8px;
-        border: 2px solid #0066cc;
-        border-radius: 6px;
-        width: 100%;
-        background: #ffffff;
-        min-height: 50px;
-    ">
-    </math-field>
-
-    <script>
-        const mf = document.getElementById('formula-input');
-        
-        // Lắng nghe sự kiện gõ công thức và gửi dữ liệu về Streamlit
-        mf.addEventListener('input', (evt) => {
-            const latexValue = mf.value;
-            // Gửi dữ liệu LaTeX về Python qua Streamlit Component API
-            window.parent.postMessage({
-                type: "streamlit:setComponentValue",
-                value: latexValue
-            }, "*");
-        });
-    </script>
-    """
-    
-    # Nhúng giao diện vào Streamlit
-    latex_output = components.html(math_editor_html, height=130)
-    return latex_output
