@@ -1,0 +1,80 @@
+edu_app/
+├── assets/                  # CSS, hình ảnh tĩnh
+├── auth/                    # Xử lý Đăng ký / Đăng nhập / Session
+│   ├── __init__.py
+│   ├── authenticator.py
+│   └── password.py
+├── data/                    # Database, Schema & Seed
+│   ├── database.db
+│   ├── schema.sql
+│   └── seed_data.py
+├── services/                # Tầng tương tác Database (CRUD query)
+│   ├── db_connection.py
+│   ├── lesson_service.py
+│   ├── practice_service.py
+│   └── stats_service.py
+├── pages_app/               # Giao diện các trang
+│   ├── 1_📖_Hoc_Tap.py
+│   ├── 2_📝_Luyen_Tap.py
+│   ├── 3_📊_Thong_Ke.py
+│   └── admin_*.py
+├── tests/                   # Pytest Unit Tests
+│   ├── test_auth.py
+│   ├── test_db.py
+│   └── test_practice.py
+├── app.py                   # Entry point chính
+└── requirements.txt
+
+
+EducationSystem/
+│── assets/
+│── auth/
+│   └── auth_service.py
+│── services/
+│   └── db_connection.py
+│── modules/                   <-- THƯ MỤC MỚI CHỨA CÁC FILE GIAO DIỆN
+│   ├── sidebar.py             <-- Bộ lọc Sidebar bên trái
+│   ├── admin_views.py         <-- Toàn bộ giao diện Admin
+│   └── student_views.py       <-- Toàn bộ giao diện Student (4 Tabs)
+│── app.py                     <-- File chính siêu gọn (Chỉ gọi module)
+
+pip install bcrypt
+pip install pandas openpyxl
+
+streamlit run app.py
+pytest -v test_app.py
+
+streamlit run app.py --logger.level=debug
+
+Khi chạy ứng dụng, hãy thêm cờ --server.fileWatcherType=none để ngăn Streamlit liên tục "soi" các file rác .pyc làm sập session:
+streamlit run app.py --server.fileWatcherType=none
+
+lệnh này sẽ ghi toàn bộ log chi tiết nhất ra terminal:
+streamlit run app.py --logger.level=debug --server.headless=true
+
+--------------------DEBUG-----------------------
+import pdb; pdb.set_trace()
+# Hoặc từ Python 3.7+ trở đi bạn chỉ cần gõ duy nhất:
+breakpoint()
+Khi chèn dòng này vào vị trí nghi vấn trong code, ứng dụng sẽ dừng lại ngay tại Terminal và cho phép bạn gõ các lệnh như:
+l (list): Xem lại một đoạn mã xung quanh dòng đang dừng.
+s (step): Nhảy vào bên trong hàm của dòng hiện tại để gỡ lỗi chi tiết.
+n (next): Đi tiếp dòng kế tiếp.
+p variable_name: In ra giá trị của biến.
+c (continue): Cho chương trình chạy tiếp.
+q (quit): Thoát khỏi debug.
+
+---------------------------------------------------
+…or create a new repository on the command line
+echo "# EducationSystem" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/tykhai/EducationSystem.git
+git push -u origin main
+
+…or push an existing repository from the command line
+git remote add origin https://github.com/tykhai/EducationSystem.git
+git branch -M main
+git push -u origin main

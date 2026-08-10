@@ -1,0 +1,65 @@
+Hãy đóng vai một chuyên gia biên soạn giáo trình THCS/THPT. Tôi gửi file dữ liệu bài học bạn hãy trích dẫn tạo thành gồm 2 phần là Bài học không phải câu hỏi và ngân hàng câu hỏi dưới dạng cấu trúc JSON nguyên bản (Raw JSON), không chứa lời dẫn hay bất kỳ định dạng Markdown code block nào ngoài mảng JSON chính. Nếu là bài học thì
+
+YÊU CẦU DỮ LIỆU:
+1. Hãy tạo 1 hoặc nhiều bài học cho Môn: "Toán" (hoặc Hóa học/Vật lý), Lớp: "Lớp 8", Học kỳ: "Học kỳ 1".
+2. Trong mỗi bài học, hãy tạo nội dung Lý thuyết chi tiết có chứa công thức KaTeX/LaTeX chuẩn (dùng $...$ cho công thức nằm cùng dòng và $$...$$ cho khối công thức căn giữa).
+3. Mỗi bài học bao gồm danh sách "questions" chứa đầy đủ các dạng:
+   - "theory": Câu hỏi Củng cố Lý thuyết (Trắc nghiệm mcq).
+   - "regular": Bài tập Rèn luyện bao gồm cả Trắc nghiệm (mcq) và Tự luận (essay).
+   - "mid_hk1" / "final_hk1": Đề thi định kỳ.
+4. Với câu hỏi Tự luận (question_format = "essay"), bắt buộc phải có "essay_solution" dạng Đáp án & Thang điểm chi tiết.
+
+CẤU TRÚC JSON MẪU CHUẨN ĐỂ BẠN TẠO THEO (Dạng Array):
+
+[
+  {
+    "grade_name": "Lớp 8",
+    "subject_name": "Toán",
+    "semester_name": "Học kỳ 1",
+    "chapter_name": "Chương 1: Đa thức",
+    "title": "Bài 2: Phân tích đa thức thành nhân tử",
+    "summary": "Nắm vững các phương pháp phân tích đa thức thành nhân tử: đặt nhân tử chung, dùng hằng đẳng thức, nhóm hạng tử.",
+    "content_markdown": "### 1. Phương pháp đặt nhân tử chung\nKhi tất cả các hạng tử của đa thức có một nhân tử chung, ta có thể đặt nhân tử chung đó ra ngoài dấu ngoặc:\n$$A \\cdot B + A \\cdot C = A(B + C)$$\n\n### 2. Phương pháp dùng hằng đẳng thức\nÁp dụng các hằng đẳng thức đáng nhớ, ví dụ:\n$$a^2 - b^2 = (a - b)(a + b)$$",
+    "image_path": null,
+    "questions": [
+      {
+        "question_format": "mcq",
+        "exam_type": "theory",
+        "question_text": "Phương pháp đặt nhân tử chung dựa trên tính chất nào của phép toán?",
+        "option_a": "Tính chất phân phối của phép nhân đối với phép cộng",
+        "option_b": "Tính chất giao hoán của phép cộng",
+        "option_c": "Tính chất kết hợp của phép nhân",
+        "option_d": "Tính chất giao hoán của phép nhân",
+        "correct_option": "A",
+        "essay_solution": null,
+        "explanation": "Công thức $A \\cdot B + A \\cdot C = A(B + C)$ là tính chất phân phối."
+      },
+      {
+        "question_format": "mcq",
+        "exam_type": "regular",
+        "question_text": "Phân tích đa thức $3x^2 - 6x$ thành nhân tử:",
+        "option_a": "$3x(x - 2)$",
+        "option_b": "$3(x^2 - 2x)$",
+        "option_c": "$x(3x - 6)$",
+        "option_d": "$3x(x + 2)$",
+        "correct_option": "A",
+        "essay_solution": null,
+        "explanation": "Nhân tử chung là $3x$, ta có: $3x^2 - 6x = 3x(x - 2)$."
+      },
+      {
+        "question_format": "essay",
+        "exam_type": "regular",
+        "question_text": "**Bài tập Tự luận:** Phân tích đa thức sau thành nhân tử: $A = x^2 - 4y^2 + 2x + 1$",
+        "option_a": null,
+        "option_b": null,
+        "option_c": null,
+        "option_d": null,
+        "correct_option": null,
+        "essay_solution": "**ĐÁP ÁN & THANG ĐIỂM CHI TIẾT:**\n\n1. *Nhóm các hạng tử thích hợp để tạo hằng đẳng thức:* (4.0 điểm)\n   $$A = (x^2 + 2x + 1) - 4y^2$$\n\n2. *Biến đổi về dạng hiệu hai bình phương:* (3.0 điểm)\n   $$A = (x + 1)^2 - (2y)^2$$\n\n3. *Áp dụng hằng đẳng thức $a^2 - b^2 = (a-b)(a+b)$:* (3.0 điểm)\n   $$A = (x + 1 - 2y)(x + 1 + 2y)$$",
+        "explanation": "Sử dụng phương pháp nhóm hạng tử kết hợp hằng đẳng thức."
+      }
+    ]
+  }
+]
+
+Hãy tạo cho tôi 2 bài học môn Toán Lớp 8 chuẩn theo đúng cấu trúc JSON trên.
