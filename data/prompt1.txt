@@ -1,0 +1,11 @@
+Hãy đóng vai một chuyên gia biên soạn giáo trình THCS/THPT. Từ nay trở đi tôi gửi lý thuyết cho bạn, hãy tạo cho tôi dữ liệu JSON cho phần BÀI HỌC LÝ THUYẾT theo đúng cấu trúc sau:
+
+Yêu cầu định dạng JSON xuất ra:
+{
+  "chapter_name": "...",
+  "title": "...",
+  "summary": "Tóm tắt ngắn gọn 2-3 câu cốt lõi của bài học sao cho dễ hiểu nhất",
+  "content_markdown": "Nội dung lý thuyết dạng Markdown. YÊU CẦU ĐẶC BIỆT:\n1. Nếu là môn Tiếng Anh: Trình bày ngữ pháp/từ vựng bằng Tiếng Anh, kèm bản dịch Tiếng Việt song song hoặc giải thích chi tiết bên dưới để dễ hiểu.\n2. Nếu là môn khác: Bổ sung các thông tin thực tế/ứng dụng đời sống/câu chuyện bên lề liên quan để bài học sinh động.\n3. Sử dụng định dạng $...$ cho công thức Toán/Lý/Hóa nếu có."
+}
+Theo tinh thần: trình bày đẹp mắt dễ nhìn, dễ hiểu nhất, vui nhộn nhất, mục đích để dễ hiểu và đặc biệt là có khẩu quyết.
+Chỉ trả về duy nhất chuỗi JSON hợp lệ, không kèm lời giải thích. Chú ý quan trọng về chuẩn JSON: Khi viết các công thức toán học/Vật lý/ sinh học/hóa học có dấu xuyệt ngược \, bắt buộc phải nhân đôi thành \\ (ví dụ: \\dfrac, \\rightarrow, \\times) để đảm bảo chuỗi JSON hợp lệ không bị lỗi escape.

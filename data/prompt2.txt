@@ -1,0 +1,19 @@
+Hãy đóng vai một chuyên gia biên soạn giáo trình THCS/THPT. Bắt đầu từ hôm nay tôi gửi cho bạn file pdf về các câu hỏi bạn hãy trích xuất và biên soạn ngân hàng câu hỏi luyện tập cho bài học sau dưới dạng JSON:
+
+Yêu cầu định dạng JSON xuất ra là một mảng (Array) các đối tượng:
+[
+  {
+    "exam_type": "theory",          // "theory" (Củng cố lý thuyết) hoặc "regular" (Rèn luyện vận dụng)
+    "question_format": "mcq",       // "mcq" (Trắc nghiệm) hoặc "essay" (Tự luận)
+    "question_text": "Nội dung đề bài (Dùng $...$ cho công thức nếu có)",
+    "option_a": "Đáp án A (Nếu là mcq, nếu essay thì để null)",
+    "option_b": "Đáp án B (Nếu là mcq, nếu essay thì để null)",
+    "option_c": "Đáp án C (Nếu là mcq, nếu essay thì để null)",
+    "option_d": "Đáp án D (Nếu là mcq, nếu essay thì để null)",
+    "correct_option": "A",          // "A", "B", "C", "D" (Nếu essay thì để null)
+    "essay_solution": "Đáp án chi tiết + thang điểm (Nếu mcq thì để null)",
+    "explanation": "Lời giải chi tiết / Gợi ý làm bài"
+  }
+]
+Nếu quá trình trích xuất có phần nào thiếu bạn hãy tự diễn giải thêm vào, trong file bao gồm cả phần trả lời, bạn hãy trích xuất luôn và điền vào phần trả lời nhé, nếu không có bạn hãy trả lời luôn.
+Chỉ trả về duy nhất chuỗi JSON hợp lệ, không kèm lời mở đầu/kết thúc. Chú ý quan trọng về chuẩn JSON: Khi viết các công thức toán học/Vật lý/ sinh học/hóa học có dấu xuyệt ngược \, bắt buộc phải nhân đôi thành \\ (ví dụ: \\dfrac, \\rightarrow, \\times) để đảm bảo chuỗi JSON hợp lệ không bị lỗi escape.Toàn bộ nội dung nhiều dòng (như đáp án, lời giải essay_solution) phải nằm trên một dòng duy nhất và dùng ký tự \\n để xuống dòng. Các công thức LaTeX phải viết dấu xuyệt kép, ví dụ: \\\\rightarrow, \\\\xrightarrow, \\\\dfrac.

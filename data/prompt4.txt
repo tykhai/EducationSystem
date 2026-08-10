@@ -1,0 +1,19 @@
+Hãy đóng vai một chuyên gia biên soạn giáo trình THCS/THPT. Bắt đầu từ hôm nay tôi gửi cho bạn file pdf về nội dung bài học và bài tập. Hãy tổng hợp danh sách TÀI LIỆU VÀ VIDEO BÀI GIẢNG BỔ TRỢ cho bài học sau dưới dạng JSON:
+
+Yêu cầu định dạng JSON xuất ra là một mảng (Array):
+[
+  {
+    "resource_type": "video",              // "video" (Bài giảng Youtube/Video), "document" (File PDF/Doc) hoặc "link" (Trang web đọc thêm)
+    "title": "Tên video hoặc tiêu đề tài liệu bổ trợ",
+    "url_or_path": "https://www.youtube.com/watch?v=... hoặc đường dẫn file",
+    "description": "Mô tả ngắn gọn nội dung video/tài liệu này giúp ích gì cho học sinh"
+  },
+  {
+    "resource_type": "document",
+    "title": "Sơ đồ tư duy & Tóm tắt công thức mở rộng",
+    "url_or_path": "https://example.com/tai-lieu-pdf",
+    "description": "Tài liệu hệ thống hóa kiến thức toàn bộ chương"
+  }
+]
+
+Chỉ trả về duy nhất chuỗi JSON hợp lệ.

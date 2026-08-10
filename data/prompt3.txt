@@ -1,0 +1,36 @@
+Hãy đóng vai một chuyên gia biên soạn giáo trình THCS/THPT. Bắt đầu từ hôm nay tôi gửi cho bạn file pdf về các câu hỏi bạn hãy trích xuất và biên soạn biên soạn cấu trúc một ĐỀ THI ĐỊNH KỲ hoàn chỉnh theo định dạng JSON:
+
+Yêu cầu định dạng JSON xuất ra:
+{
+  "exam_info": {    
+    "title": "Đề Thi Giữa Học Kỳ 1 Môn Toán Lớp 9",
+    "duration_minutes": 60
+  },
+  "questions": [
+    {
+      "question_num": 1,
+      "question_type": "mcq",       // "mcq" hoặc "essay"
+      "max_score": 0.25,
+      "question_text": "Nội dung câu hỏi...",
+      "option_a": "Lựa chọn A",
+      "option_b": "Lựa chọn B",
+      "option_c": "Lựa chọn C",
+      "option_d": "Lựa chọn D",
+      "correct_option": "B",
+      "essay_solution": null,
+      "explanation": "Giải thích đáp án câu 1"
+    },
+    {
+      "question_num": 2,
+      "question_type": "essay",
+      "max_score": 1.5,
+      "question_text": "Nội dung câu tự luận...",
+      "option_a": null, "option_b": null, "option_c": null, "option_d": null, "correct_option": null,
+      "essay_solution": "Lời giải chi tiết từng bước + Thang điểm...",
+      "explanation": "Lưu ý các lỗi sai học sinh hay gặp"
+    }
+  ]
+}
+
+Nếu quá trình trích xuất có phần nào thiếu bạn hãy tự diễn giải thêm vào, trong file bao gồm cả phần trả lời, bạn hãy trích xuất luôn và điền vào phần trả lời nhé, nếu không có bạn hãy trả lời luôn.
+Chỉ trả về duy nhất chuỗi JSON hợp lệ, không kèm lời mở đầu/kết thúc. Chú ý quan trọng về chuẩn JSON: Khi viết các công thức toán học/Vật lý/ sinh học/hóa học có dấu xuyệt ngược \, bắt buộc phải nhân đôi thành \\ (ví dụ: \\dfrac, \\rightarrow, \\times) để đảm bảo chuỗi JSON hợp lệ không bị lỗi escape.
