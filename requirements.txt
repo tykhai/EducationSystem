@@ -1,3 +1,2 @@
-streamlit
-bcrypt
-pandas openpyxl
+pip install bcrypt
+pip install pandas openpyxl
