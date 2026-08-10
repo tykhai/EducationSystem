@@ -2,3 +2,6 @@ bcrypt
 pandas
 openpyxl
 annotations
+json
+re
+html
