@@ -1,7 +1,4 @@
-bcrypt==1.0.0
+streamlit
+bcrypt
 pandas
 openpyxl
-annotations
-json
-re
-html
