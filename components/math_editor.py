@@ -39,7 +39,26 @@ import json
 import re
 import streamlit as st
 import streamlit.components.v1 as components
+import re
 
+def make_safe_id(key):
+    """
+    Tạo ID HTML an toàn và duy nhất cho từng editor.
+    """
+
+    key = str(key)
+
+    key = re.sub(
+        r"[^a-zA-Z0-9_-]",
+        "_",
+        key
+    )
+
+    if key and key[0].isdigit():
+        key = "editor_" + key
+
+    return key
+    
 # ============================================================
 # 1. CÁC HÀM CHUẨN HÓA LATEX
 # ============================================================
@@ -100,7 +119,7 @@ def latex_editor(
     Dùng khi học sinh chủ yếu nhập công thức.
     Trả về chuỗi LaTeX.
     """
-    safe_key = html.escape(str(key), quote=True)
+    safe_key = make_safe_id(key)
     safe_value = html.escape(default_value or "")
 
     html_code = f"""
@@ -171,8 +190,7 @@ window.addEventListener("load", () => {{
     return components.html(
         html_code,
         height=height,
-        scrolling=False,
-        key=key,
+        scrolling=False        
     )
 
 
@@ -224,159 +242,72 @@ def _toolbar_html(buttons) -> str:
 
 
 def textarea_toolbar(
-    key: str = "textarea_toolbar",
-    default_value: str = "",
-    height: int = 260,
-    advanced: bool = False,
+    key="math_editor",
+    default_value="",
+    height=180
 ):
     """
-    Textarea + toolbar.
-
-    Đây là lựa chọn khuyến nghị nếu câu trả lời có cả chữ và công thức.
+    Text + LaTeX toolbar.
+    Trả về trực tiếp chuỗi người dùng nhập.
     """
-    buttons = _SIMPLE_BUTTONS + (_ADVANCED_BUTTONS if advanced else [])
-    toolbar = _toolbar_html(buttons)
 
-    safe_key = html.escape(str(key), quote=True)
-    safe_value = html.escape(default_value or "")
+    # Lấy dữ liệu hiện tại
+    if key not in st.session_state:
+        st.session_state[key] = default_value
 
-    html_code = f"""
-<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-
-<style>
-* {{ box-sizing:border-box; }}
-
-html,body {{
-    margin:0;
-    padding:0;
-    background:transparent;
-    font-family:Arial,sans-serif;
-}}
-
-.wrapper {{
-    width:100%;
-}}
-
-.toolbar {{
-    display:flex;
-    flex-wrap:wrap;
-    gap:4px;
-    padding:5px;
-    margin-bottom:5px;
-    border:1px solid #ddd;
-    border-radius:6px;
-    background:#f7f7f7;
-}}
-
-.latex-btn {{
-    border:1px solid #ccc;
-    background:white;
-    border-radius:5px;
-    padding:4px 8px;
-    cursor:pointer;
-    font-size:13px;
-}}
-
-.latex-btn:hover {{
-    background:#eaf3ff;
-    border-color:#6ba8e8;
-}}
-
-textarea {{
-    width:100%;
-    resize:vertical;
-    min-height:130px;
-    border:1px solid #bbb;
-    border-radius:7px;
-    padding:9px;
-    font-size:15px;
-    line-height:1.5;
-    font-family:Consolas,monospace;
-    background:white;
-    outline:none;
-}}
-
-textarea:focus {{
-    border-color:#1976d2;
-}}
-
-.note {{
-    margin-top:4px;
-    color:#777;
-    font-size:11px;
-}}
-</style>
-</head>
-
-<body>
-<div class="wrapper">
-
-<div class="toolbar">
-{toolbar}
-</div>
-
-<textarea id="{safe_key}" placeholder="Gõ câu trả lời bằng chữ. Khi cần, bấm nút công thức...">{safe_value}</textarea>
-
-<div class="note">
-Có thể gõ chữ bình thường và chèn LaTeX vào cùng một câu.
-</div>
-
-</div>
-
-<script>
-const ta = document.getElementById("{safe_key}");
-
-function send() {{
-    window.parent.postMessage(
-        {{
-            isStreamlitMessage:true,
-            type:"streamlit:setComponentValue",
-            value:ta.value
-        }},
-        "*"
-    );
-}}
-
-document.querySelectorAll(".latex-btn").forEach(btn => {{
-    btn.addEventListener("click", () => {{
-        const latex = btn.dataset.latex;
-        const start = ta.selectionStart;
-        const end = ta.selectionEnd;
-        const selected = ta.value.substring(start, end);
-
-        let insert = latex.replaceAll("□", selected || "");
-
-        ta.value =
-            ta.value.substring(0, start) +
-            insert +
-            ta.value.substring(end);
-
-        const pos = start + insert.length;
-        ta.focus();
-        ta.setSelectionRange(pos, pos);
-
-        send();
-    }});
-}});
-
-ta.addEventListener("input", send);
-
-window.addEventListener("load", send);
-</script>
-
-</body>
-</html>
-"""
-
-    return components.html(
-        html_code,
-        height=height,
-        scrolling=False,
-        key=key,
+    st.markdown(
+        """
+        <div style="
+            font-size:14px;
+            font-weight:600;
+            margin-bottom:5px;
+        ">
+            🧮 Câu trả lời
+        </div>
+        """,
+        unsafe_allow_html=True
     )
+
+    # Toolbar
+    cols = st.columns(8)
+
+    buttons = {
+        "½": r"\dfrac{}{}",
+        "√": r"\sqrt{}",
+        "x²": r"^{}",
+        "x₁": r"_{}",
+        "×": r"\times",
+        "÷": r"\div",
+        "→": r"\rightarrow",
+        "π": r"\pi",
+    }
+
+    for col, (label, formula) in zip(cols, buttons.items()):
+
+        if col.button(
+            label,
+            key=f"{key}_btn_{label}"
+        ):
+
+            current = st.session_state[key]
+
+            st.session_state[key] = (
+                current + formula
+            )
+
+            st.rerun()
+
+    # Textarea
+    value = st.text_area(
+        "",
+        value=st.session_state[key],
+        height=height,
+        key=f"{key}_textarea"
+    )
+
+    st.session_state[key] = value
+
+    return value
 
 
 # ============================================================
@@ -400,7 +331,7 @@ def textarea_preview(
     buttons = _SIMPLE_BUTTONS + (_ADVANCED_BUTTONS if advanced else [])
     toolbar = _toolbar_html(buttons)
 
-    safe_key = html.escape(str(key), quote=True)
+    safe_key = make_safe_id(key)
     safe_value = html.escape(default_value or "")
 
     html_code = f"""
@@ -646,10 +577,8 @@ window.addEventListener("load", () => {{
     return components.html(
         html_code,
         height=height,
-        scrolling=False,
-        key=key,
+        scrolling=False
     )
-
 
 # ============================================================
 # 5. EQUATION EDITOR PHỨC TẠP - MATHLIVE
@@ -675,7 +604,7 @@ def equation_editor(
 
     Không khuyến nghị dùng cho đoạn văn dài.
     """
-    safe_key = html.escape(str(key), quote=True)
+    safe_key = make_safe_id(key)
     safe_value = html.escape(default_value or "")
 
     html_code = f"""
@@ -777,8 +706,7 @@ window.addEventListener("load", send);
     return components.html(
         html_code,
         height=height,
-        scrolling=False,
-        key=key,
+        scrolling=False
     )
 
 
@@ -805,7 +733,7 @@ def simple_math_editor(
     buttons = _SIMPLE_BUTTONS[:10]
     toolbar = _toolbar_html(buttons)
 
-    safe_key = html.escape(str(key), quote=True)
+    safe_key = make_safe_id(key)
     safe_value = html.escape(default_value or "")
 
     html_code = f"""
@@ -992,8 +920,7 @@ window.addEventListener("load", () => {{
     return components.html(
         html_code,
         height=height,
-        scrolling=False,
-        key=key,
+        scrolling=False        
     )
 
 
