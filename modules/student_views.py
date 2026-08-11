@@ -4,7 +4,18 @@ import os
 import streamlit.components.v1 as components
 import re
 from services.db_connection import get_connection
-from components.math_editor import visual_math_editor
+#1. Visual_math_editor
+#from components.math_editor import visual_math_editor
+#2. Textarea_preview
+#from components.math_editor import textarea_preview
+#3. Simple_math_editor
+#from components.math_editor import simple_math_editor
+#4. Latex_editor
+#from components.math_editor import latex_editor
+#5. Equation_editor
+#from components.math_editor import equation_editor
+#6. Textarea_toolbar
+from components.math_editor import simple_math_editor
 
 def extract_youtube_id(url):
     """Hàm phụ trợ lấy YouTube ID để nhúng Video trực tiếp vào Streamlit"""
@@ -206,7 +217,21 @@ def render_student_dashboard(filter_data):
                     
                     # TÍCH HỢP BỘ GÕ CONG THỨC VISUAL MATH EDITOR
                     #essay_ans_latex = visual_math_editor(key=f"essay_{q['id']}")
-                    essay_ans_latex = visual_math_editor(key=f"essay_{q['id']}")#, default_value="")
+                    #1. Visual_math_editor
+                    #essay_ans_latex = visual_math_editor(key=f"essay_{q['id']}")
+                    #2. Textarea_preview
+                    #essay_ans_latex = textarea_preview(key=f"essay_{q['id']}",default_value="",height=220)
+                    #st.write("Dữ liệu LaTeX:")
+                    #st.code(essay_ans_latex)
+                    #3. Textarea_toolbar
+                    #essay_ans_latex = textarea_toolbar(key=f"essay_{q['id']}", height=200)
+                    #st.write("Dữ liệu LaTeX:",essay_ans_latex)
+                    #4. Simple_math_editor
+                    essay_ans_latex = simple_math_editor(key=f"essay_{q['id']}",height=200)
+                    #5. Latex_editor
+                    #essay_ans_latex = latex_editor(key=f"formula_{q['id']}")
+                    #6. Equation_editor
+                    #essay_ans_latex = equation_editor(key=f"equation_{q['id']}")
                     
                     if st.button(f"Nộp bài & Xem đáp án câu {idx}", key=f"btn_es_{q['id']}"):
                         if essay_ans_latex:
@@ -268,8 +293,21 @@ def render_student_dashboard(filter_data):
                             opts = [option_a, option_b, option_c, option_d]
                             st.radio(f"Đáp án câu {eq['question_num']}:", opts, key=f"ex_mcq_{eq['id']}", index=None)
                         else:
-                            # Tích hợp luôn Visual Math Editor cho câu hỏi tự luận trong đề thi
-                            visual_math_editor(key=f"ex_essay_{eq['id']}")
+                            # Tích hợp Math Editor cho câu hỏi tự luận trong đề thi
+                            # TÍCH HỢP BỘ GÕ CONG THỨC VISUAL MATH EDITOR
+                            #essay_ans_latex = visual_math_editor(key=f"essay_{q['id']}")
+                            #1. Visual_math_editor
+                            #essay_ans_latex = visual_math_editor(key=f"essay_{q['id']}")
+                            #2. Textarea_preview
+                            #essay_ans_latex = textarea_preview(key=f"essay_{q['id']}",default_value="",height=220)
+                            #3. Textarea_toolbar
+                            #essay_ans_latex = textarea_toolbar(key=f"essay_{q['id']}", height=200)
+                            #4. Simple_math_editor
+                            essay_ans_latex = simple_math_editor(key=f"essay_{q['id']}",height=200)
+                            #5. Latex_editor
+                            #essay_ans_latex = latex_editor(key=f"formula_{q['id']}")
+                            #6. Equation_editor
+                            #essay_ans_latex = equation_editor(key=f"equation_{q['id']}")
                         st.divider()
                     
                     if st.form_submit_button("Nộp Bài Thi"):
