@@ -370,12 +370,12 @@ def render_admin_dashboard():
                             if not all_lessons:
                                 st.error("Chưa có bài học nào trong CSDL. Vui lòng tạo bài học trước!")
                             else:
-                                target_les = st.selectbox("Chọn Bài học để gắn câu hỏi:", all_lessons, format_func=lambda x: x['title'])
+                                #target_les = st.selectbox("Chọn Bài học để gắn câu hỏi:", all_lessons, format_func=lambda x: x['title'])
                                 for q in data:
                                     cursor.execute('''
                                         INSERT INTO questions (lesson_id, question_format, exam_type, question_text, option_a, option_b, option_c, option_d, correct_option, essay_solution, explanation)
                                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                                    ''', (target_les['id'], q['question_format'], q['exam_type'], q['question_text'], q.get('option_a'), q.get('option_b'), q.get('option_c'), q.get('option_d'), q.get('correct_option'), q.get('essay_solution'), q.get('explanation')))
+                                    ''', (selected_lesson['id'], q['question_format'], q['exam_type'], q['question_text'], q.get('option_a'), q.get('option_b'), q.get('option_c'), q.get('option_d'), q.get('correct_option'), q.get('essay_solution'), q.get('explanation')))
                                 conn.commit()
                                 st.success(f"🎉 Đã nạp thành công {len(data)} câu hỏi!")
 
@@ -401,12 +401,12 @@ def render_admin_dashboard():
                         elif "4. Tài liệu & Video bổ trợ (Resources)" in json_category:
                             cursor.execute("SELECT id, title FROM lessons ORDER BY id DESC")
                             all_lessons = cursor.fetchall()
-                            target_les_res = st.selectbox("Chọn Bài học đính kèm:", all_lessons, format_func=lambda x: x['title'])
+                            #target_les_res = st.selectbox("Chọn Bài học đính kèm:", all_lessons, format_func=lambda x: x['title'])
                             for r in data:
                                 cursor.execute('''
                                     INSERT INTO resources (lesson_id, resource_type, title, url_or_path, description)
                                     VALUES (?, ?, ?, ?, ?)
-                                ''', (target_les_res['id'], r['resource_type'], r['title'], r['url_or_path'], r.get('description')))
+                                ''', (selected_lesson['id'], r['resource_type'], r['title'], r['url_or_path'], r.get('description')))
                             conn.commit()
                             st.success(f"🎉 Đã thêm thành công {len(data)} tài liệu bổ trợ!")
 

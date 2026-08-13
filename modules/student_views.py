@@ -17,6 +17,90 @@ from services.db_connection import get_connection
 #6. Textarea_toolbar
 from components.math_editor import simple_math_editor
 
+def display_question_image(
+    image_path,
+    image_dir="assets/images",
+    default_width=450,
+    max_width=1200
+):
+    """
+    Hiển thị ảnh câu hỏi nếu image_path hợp lệ.
+
+    Parameters
+    ----------
+    image_path : str
+        Đường dẫn/tên file ảnh lấy từ DB.
+        Ví dụ: "question_123.png"
+
+    image_dir : str
+        Thư mục chứa ảnh.
+
+    default_width : int
+        Chiều rộng mặc định của ảnh.
+
+    max_width : int
+        Chiều rộng tối đa cho phép.
+
+    Returns
+    -------
+    bool
+        True nếu ảnh được hiển thị.
+        False nếu không có ảnh hoặc file không tồn tại.
+    """
+
+    # Không có image_path
+    if not image_path:
+        return False
+
+    # Chuyển về string để tránh lỗi nếu DB trả về None/Path
+    image_path = str(image_path).strip()
+
+    if not image_path:
+        return False
+
+    # Nếu DB chỉ lưu tên file
+    full_path = os.path.join(image_dir, image_path)
+
+    # Kiểm tra file tồn tại
+    if not os.path.exists(full_path):
+        return False
+
+    # --------------------------------------------------
+    # Xác định width
+    # --------------------------------------------------
+
+    width = default_width
+
+    # Lấy các số trong tên file
+    numbers = [
+        int(n)
+        for n in re.findall(r"\d+", image_path)
+    ]
+
+    # Chỉ lấy số > 50
+    filtered_nums = [
+        n for n in numbers
+        if n > 50
+    ]
+
+    # Nếu có số phù hợp thì lấy số lớn nhất
+    if filtered_nums:
+        width = max(filtered_nums)
+
+    # Không cho ảnh quá lớn
+    width = min(width, max_width)
+
+    # --------------------------------------------------
+    # Hiển thị
+    # --------------------------------------------------
+
+    st.image(
+        full_path,
+        width=width
+    )
+
+    return True
+
 def extract_youtube_id(url):
     """Hàm phụ trợ lấy YouTube ID để nhúng Video trực tiếp vào Streamlit"""
     youtube_regex = r'(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})'
@@ -158,6 +242,8 @@ def render_student_dashboard(filter_data):
             st.info("Chưa có câu hỏi củng cố lý thuyết cho bài học này.")
         else:
             for idx, q in enumerate(theory_qs, 1):
+                # Hiển thị ảnh câu hỏi nếu có               
+                display_question_image(q['image_path'])
                 question = render_markdown(q["question_text"])
                 st.markdown(f"**Câu {idx}: {question}**")
                 option_a = render_markdown_(q['option_a'])
@@ -175,6 +261,7 @@ def render_student_dashboard(filter_data):
                         st.error(f"❌ Chưa đúng! Đáp án đúng là: {q['correct_option']}")
                     if q['explanation']:
                         st.info(f"💡 Giải thích: {q['explanation']}")
+                    display_question_image(q['explanation_image_path'])
                 st.divider()
 
     # ==========================================
@@ -192,8 +279,7 @@ def render_student_dashboard(filter_data):
                 st.markdown(f"**Câu {idx}: {question_text}**")
                 
                 # Hiển thị ảnh câu hỏi nếu có
-                if q.get('question_image') and os.path.exists(q['question_image']):
-                    st.image(q['question_image'], width=400)
+                display_question_image(q['image_path'])               
 
                 if q['question_format'] == 'mcq':
                     option_a = render_markdown_(q['option_a'])
@@ -212,6 +298,9 @@ def render_student_dashboard(filter_data):
                             st.error(f"❌ Chưa đúng! Đáp án đúng là: {correct_option}")
                         if q['explanation']:
                             st.info(f"💡 Giải thích: {explanation}")
+                        # Hiển thị explanation_image mới bổ sung nếu có
+                        display_question_image(q['explanation_image_path'])
+                       
                 else:
                     st.caption("✍️ Nhập công thức / câu trả lời của bạn:")
                     
@@ -244,11 +333,15 @@ def render_student_dashboard(filter_data):
                         st.markdown(f"**Đáp án mẫu:**\n{essay_solution}")
                         if q['explanation']:
                             st.info(f"💡 Hướng dẫn chi tiết: {explanation}")
-                        
                         # Hiển thị explanation_image mới bổ sung nếu có
-                        if q.get('explanation_image') and os.path.exists(q['explanation_image']):
-                            st.image(q['explanation_image'], caption="Hình minh họa lời giải", width=450)
-
+                        display_question_image(q['explanation_image_path'])
+                        # if q['explanation_image_path'] and os.path.exists(f"assets/images/{q['explanation_image_path']}"):
+                            # width_tab3_ans_ = 450
+                            # numbers_tab3_ans_ = [int(n) for n in re.findall(r"\d+", q['explanation_image_path'])]
+                            # filtered_nums_tab3_ans_ = [n for n in numbers if n > 50]
+                            # if filtered_nums_tab3_ans_:
+                                # width = max(filtered_nums_tab3_ans_)
+                            # st.image(f"assets/images/{q['explanation_image_path']}", caption="Hình minh họa lời giải", width=width_tab3_ans_)
                 st.divider()
 
     # ==========================================
@@ -276,13 +369,8 @@ def render_student_dashboard(filter_data):
                     for eq in eqs:
                         question_text_ = render_markdown(eq["question_text"])
                         
-                        if eq['image_path'] and os.path.exists(f"assets/images/{eq['image_path']}"):
-                            width = 450
-                            numbers = [int(n) for n in re.findall(r"\d+", eq['image_path'])]
-                            filtered_nums = [n for n in numbers if n > 50]
-                            if filtered_nums:
-                                width = max(filtered_nums)
-                            st.image(f"assets/images/{eq['image_path']}", width=width)
+                        # Hiển thị image bổ sung nếu có
+                        display_question_image(q['image_path'])
                         
                         st.markdown(f"**Câu {eq['question_num']} ({eq['max_score']} điểm): {question_text_}**")
                         if eq['question_type'] == 'mcq':
@@ -308,6 +396,9 @@ def render_student_dashboard(filter_data):
                             #essay_ans_latex = latex_editor(key=f"formula_{q['id']}")
                             #6. Equation_editor
                             #essay_ans_latex = equation_editor(key=f"equation_{q['id']}")
+                            
+                        # Hiển thị explanation_image mới bổ sung nếu có
+                        display_question_image(q['explanation_image_path'])
                         st.divider()
                     
                     if st.form_submit_button("Nộp Bài Thi"):
