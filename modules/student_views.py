@@ -107,7 +107,7 @@ def render_student_dashboard(filter_data):
                 if current_lesson['image_path'] and os.path.exists(current_lesson['image_path']):
                     st.image(current_lesson['image_path'], use_column_width=True)
                     
-                content = render_markdown(current_lesson['content_markdown'])                
+                content = render_markdown_(current_lesson['content_markdown'])                
                 st.markdown(content)
                 
                 if current_lesson['summary']:
@@ -143,7 +143,7 @@ def render_student_dashboard(filter_data):
         else:
             if current_lesson['image_path'] and os.path.exists(current_lesson['image_path']):
                 st.image(current_lesson['image_path'], use_column_width=True)
-            st.markdown(render_markdown(current_lesson['content_markdown']))
+            st.markdown(render_markdown_(current_lesson['content_markdown']))
             if current_lesson['summary']:
                 st.info(f"💡 **Tóm tắt bài học:** {current_lesson['summary']}")
 
@@ -158,7 +158,17 @@ def render_student_dashboard(filter_data):
             st.info("Chưa có câu hỏi củng cố lý thuyết cho bài học này.")
         else:
             for idx, q in enumerate(theory_qs, 1):
-                question = render_markdown(q["question_text"])
+
+                # Hiển thị ảnh câu hỏi nếu có
+                if q['image_path'] and os.path.exists(f"assets/images/{q['image_path']}"):
+                    width = 450
+                    numbers = [int(n) for n in re.findall(r"\d+", q['image_path'])]
+                    filtered_nums = [n for n in numbers if n > 50]
+                    if filtered_nums:
+                        width = max(filtered_nums)
+                    st.image(f"assets/images/{q['image_path']}", width=width)
+
+                question = render_markdown_(q["question_text"])
                 st.markdown(f"**Câu {idx}: {question}**")
                 option_a = render_markdown_(q['option_a'])
                 option_b = render_markdown_(q['option_b'])
@@ -188,12 +198,17 @@ def render_student_dashboard(filter_data):
             st.info("Chưa có bài tập rèn luyện cho bài học này.")
         else:
             for idx, q in enumerate(practice_qs, 1):
-                question_text = render_markdown(q["question_text"])
+                question_text = render_markdown_(q["question_text"])
                 st.markdown(f"**Câu {idx}: {question_text}**")
                 
                 # Hiển thị ảnh câu hỏi nếu có
-                if q.get('question_image') and os.path.exists(q['question_image']):
-                    st.image(q['question_image'], width=400)
+                if q['image_path'] and os.path.exists(f"assets/images/{q['image_path']}"):
+                    width = 450
+                    numbers = [int(n) for n in re.findall(r"\d+", q['image_path'])]
+                    filtered_nums = [n for n in numbers if n > 50]
+                    if filtered_nums:
+                        width = max(filtered_nums)
+                    st.image(f"assets/images/{q['image_path']}", width=width)
 
                 if q['question_format'] == 'mcq':
                     option_a = render_markdown_(q['option_a'])
@@ -274,7 +289,7 @@ def render_student_dashboard(filter_data):
             if st.session_state.get(f"exam_active_{sel_exam['id']}"):
                 with st.form(f"form_exam_{sel_exam['id']}"):
                     for eq in eqs:
-                        question_text_ = render_markdown(eq["question_text"])
+                        question_text_ = render_markdown_(eq["question_text"])
                         
                         if eq['image_path'] and os.path.exists(f"assets/images/{eq['image_path']}"):
                             width = 450
