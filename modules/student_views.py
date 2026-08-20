@@ -3,6 +3,7 @@ import streamlit as st
 import os
 import streamlit.components.v1 as components
 import re
+import json
 from services.db_connection import get_connection
 #1. Visual_math_editor
 #from components.math_editor import visual_math_editor
@@ -16,6 +17,40 @@ from services.db_connection import get_connection
 #from components.math_editor import equation_editor
 #6. Textarea_toolbar
 from components.math_editor import simple_math_editor
+
+def render_lesson(content_markdown, image_path):
+    images = {}
+
+    if image_path:
+        try:
+            image_list = json.loads(image_path)
+
+            for image in image_list:
+                images[image["id"]] = image
+
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    pattern = r"\{\{IMAGE:([^}]+)\}\}"
+
+    parts = re.split(pattern, content_markdown or "")
+
+    for i, part in enumerate(parts):
+
+        if i % 2 == 0:
+            if part.strip():
+                st.markdown(part)
+
+        else:
+            image_id = part.strip()
+
+            image = images.get(image_id)
+
+            if image:
+                st.image(
+                    image["path"],
+                    caption=image.get("alt", "")
+                )
 
 def extract_youtube_id(url):
     """Hàm phụ trợ lấy YouTube ID để nhúng Video trực tiếp vào Streamlit"""
@@ -104,12 +139,13 @@ def render_student_dashboard(filter_data):
             sub_tab_theory, sub_tab_res = st.tabs(["📄 Bài Học Lý Thuyết", f"🎥 Tài Liệu & Video Bổ Trợ ({len(resources)})"])
             
             with sub_tab_theory:
-                if current_lesson['image_path'] and os.path.exists(current_lesson['image_path']):
-                    st.image(current_lesson['image_path'], use_column_width=True)
-                    
+                #if current_lesson['image_path'] and os.path.exists(current_lesson['image_path']):
+                #    st.image(current_lesson['image_path'], use_column_width=True)
+
                 content = render_markdown_(current_lesson['content_markdown'])                
+                render_lesson(content,current_lesson["image_path"])
                 st.markdown(content)
-                
+                                
                 if current_lesson['summary']:
                     st.info(f"💡 **TÓM TẮT BÀI HỌC CỐT LÕI:**\n\n{current_lesson['summary']}")
 
