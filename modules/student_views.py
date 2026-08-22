@@ -1,10 +1,13 @@
 # modules/student_views.py
+
 import streamlit as st
 import os
 import streamlit.components.v1 as components
 import re
 import json
 from services.db_connection import get_connection
+from components.math_editor import simple_math_editor
+from datetime import datetime, date
 #1. Visual_math_editor
 #from components.math_editor import visual_math_editor
 #2. Textarea_preview
@@ -17,6 +20,159 @@ from services.db_connection import get_connection
 #from components.math_editor import equation_editor
 #6. Textarea_toolbar
 from components.math_editor import simple_math_editor
+
+def calculate_rank(points):
+    """Xác định hạng Rank và Badge tương ứng dựa trên điểm số tích lũy."""
+    if points >= 1000:
+        return "💎 Kim Cương", "#00E5FF", "https://cdn-icons-png.flaticon.com/512/616/616490.png"
+    elif points >= 500:
+        return "🏆 Bạch Kim", "#E0E0E0", "https://cdn-icons-png.flaticon.com/512/2583/2583346.png"
+    elif points >= 250:
+        return "🥇 Vàng", "#FFD700", "https://cdn-icons-png.flaticon.com/512/2583/2583319.png"
+    elif points >= 100:
+        return "🥈 Bạc", "#C0C0C0", "https://cdn-icons-png.flaticon.com/512/2583/2583350.png"
+    else:
+        return "🥉 Đồng", "#CD7F32", "https://cdn-icons-png.flaticon.com/512/2583/2583434.png"
+
+def add_points_on_correct_answer(user_id, points_earned):
+    """GỌI HÀM NÀY MỖI KHI HỌC SINH LÀM ĐÚNG 1 CÂU HỎI"""
+    from services.db_connection import get_connection
+    from datetime import date, timedelta
+    
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    today_str = date.today().isoformat()
+    cursor.execute("SELECT last_active_date, current_streak FROM user_gamification WHERE user_id = ?", (user_id,))
+    row = cursor.fetchone()
+    
+    streak = row['current_streak'] if row else 0
+    last_act = row['last_active_date'] if row else None
+    
+    # Tính toán Chuỗi Streak
+    if last_act != today_str:
+        if last_act == (date.today() - timedelta(days=1)).isoformat():
+            streak += 1  # Học liên tiếp ngày hôm qua -> Cộng streak
+        else:
+            streak = 1   # Bỏ bẫy ngày -> Reset streak về 1
+            
+    cursor.execute("""
+        UPDATE user_gamification
+        SET daily_points = daily_points + ?,
+            weekly_points = weekly_points + ?,
+            monthly_points = monthly_points + ?,
+            semester1_points = semester1_points + ?,
+            total_points = total_points + ?,
+            current_streak = ?,
+            last_active_date = ?
+        WHERE user_id = ?
+    """, (points_earned, points_earned, points_earned, points_earned, points_earned, streak, today_str, user_id))
+    
+    conn.commit()
+    conn.close()
+
+def record_student_answer(user_id, lesson_id, question_id, subject_id, is_correct, points_correct, points_penalty):
+    """
+    Xử lý cộng/trừ điểm tích lũy, tính Streak ngày đăng nhập và lưu nhật ký làm bài.
+    - Đúng: +points_correct (mặc định +10đ)
+    - Sai: -points_penalty (mặc định -5đ)
+    """
+    conn = get_connection()
+    #init_gamification_tables(conn)
+    cursor = conn.cursor()
+
+    # Lấy thông tin Gamification hiện tại của học sinh
+    cursor.execute("SELECT * FROM user_gamification WHERE user_id = ?", (user_id,))
+    user_data = cursor.fetchone()
+
+    today_str = date.today().isoformat()
+    points = points_correct if is_correct else -points_penalty
+
+    if not user_data:
+        # Khởi tạo bản ghi mới
+        total_p = max(0, points)
+        daily_p = max(0, points)
+        weekly_p = max(0, points)
+        monthly_p = max(0, points)
+        sem1_p = max(0, points)
+        streak = 1
+        tot_q = 1
+        corr_q = 1 if is_correct else 0
+
+        cursor.execute("""
+            INSERT INTO user_gamification 
+            (user_id, total_points, daily_points, weekly_points, monthly_points, semester1_points, current_streak, last_active_date, total_questions_answered, correct_questions_answered)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (user_id, total_p, daily_p, weekly_p, monthly_p, sem1_p, streak, today_str, tot_q, corr_q))
+    else:
+        # Cập nhật bản ghi sẵn có
+        last_date_str = user_data['last_active_date']
+        streak = user_data['current_streak']
+
+        if last_date_str:
+            last_date = datetime.strptime(last_date_str, "%Y-%m-%d").date()
+            diff_days = (date.today() - last_date).days
+            if diff_days == 1:
+                streak += 1  # Học liên tục các ngày
+            elif diff_days > 1:
+                streak = 1   # Mất chuỗi Streak
+        else:
+            streak = 1
+
+        # Cập nhật điểm (không âm)        
+
+        new_total = max(0, user_data['total_points'] + points)
+        new_daily = max(0, user_data['daily_points'] + points)
+        new_weekly = max(0, user_data['weekly_points'] + points)
+        new_monthly = max(0, user_data['monthly_points'] + points)
+        new_sem1 = max(0, user_data['semester1_points'] + points)
+
+        new_tot_q = user_data['total_questions_answered'] + 1
+        new_corr_q = user_data['correct_questions_answered'] + (1 if is_correct else 0)
+
+        cursor.execute("""
+            UPDATE user_gamification 
+            SET total_points = ?, daily_points = ?, weekly_points = ?, monthly_points = ?, semester1_points = ?,
+                current_streak = ?, last_active_date = ?, total_questions_answered = ?, correct_questions_answered = ?
+            WHERE user_id = ?
+        """, (new_total, new_daily, new_weekly, new_monthly, new_sem1, streak, today_str, new_tot_q, new_corr_q, user_id))
+
+    # Ghi nhật ký lịch sử làm bài
+    cursor.execute("""
+        INSERT INTO user_answer_logs (user_id, lesson_id, question_id, subject_id, is_correct, points_awarded)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (user_id, lesson_id, question_id, subject_id, 1 if is_correct else 0, points))
+
+    conn.commit()
+    conn.close()
+    return points
+
+# ==========================================
+# RENDER LESSON & MARKDOWN HELPERS
+# ==========================================
+
+def render_lesson(content_markdown, image_path):
+    images = {}
+    if image_path:
+        try:
+            image_list = json.loads(image_path)
+            for image in image_list:
+                images[image["id"]] = image
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    pattern = r"\{\{IMAGE:([^}]+)\}\}"
+    parts = re.split(pattern, content_markdown or "")
+
+    for i, part in enumerate(parts):
+        if i % 2 == 0:
+            if part.strip():
+                st.markdown(part)
+        else:
+            image_id = part.strip()
+            image = images.get(image_id)
+            if image:
+                st.image(image["path"], caption=image.get("alt", ""))
 
 def render_lesson(content_markdown, image_path):
     images = {}
@@ -106,6 +262,7 @@ def render_student_dashboard(filter_data):
         return
 
     sel_lesson = filter_data.get('lesson')
+    user_id = st.session_state.user['id']
     
     conn = get_connection()
     cursor = conn.cursor()
@@ -190,12 +347,27 @@ def render_student_dashboard(filter_data):
         st.subheader("💡 Củng Cố Lý Thuyết Trắc Nghiệm")
         cursor.execute("SELECT * FROM questions WHERE lesson_id = ? AND exam_type = 'theory'", (current_lesson['id'],))
         theory_qs = cursor.fetchall()
+        
         if not theory_qs:
             st.info("Chưa có câu hỏi củng cố lý thuyết cho bài học này.")
         else:
-            for idx, q in enumerate(theory_qs, 1):
+            total_t_q = len(theory_qs)
+            step_key = f"t_step_{current_lesson['id']}"
+            if step_key not in st.session_state:
+                st.session_state[step_key] = 0
 
-                # Hiển thị ảnh câu hỏi nếu có
+            current_idx = st.session_state[step_key]
+            
+            # Thanh Tiến Trình (Progress bar)
+            progress_val = (current_idx + 1) / total_t_q
+            st.progress(progress_val, text=f"Câu hỏi {current_idx + 1} / {total_t_q}")
+
+            q = theory_qs[current_idx]
+            q_id = q['id']
+            ans_state_key = f"ans_state_q_{q_id}"  # Khóa trạng thái đã làm của câu hỏi
+            
+            # Thẻ nội dung câu hỏi
+            with st.container(border=True):
                 if q['image_path'] and os.path.exists(f"assets/images/{q['image_path']}"):
                     width = 450
                     numbers = [int(n) for n in re.findall(r"\d+", q['image_path'])]
@@ -205,23 +377,116 @@ def render_student_dashboard(filter_data):
                     st.image(f"assets/images/{q['image_path']}", width=width)
 
                 question = render_markdown_(q["question_text"])
-                st.markdown(f"**Câu {idx}: {question}**")
+                st.markdown(f"#### **Câu {current_idx + 1}: {question}**")
+                
                 option_a = render_markdown_(q['option_a'])
                 option_b = render_markdown_(q['option_b'])
                 option_c = render_markdown_(q['option_c'])
                 option_d = render_markdown_(q['option_d'])
                 correct_option = render_markdown_(q['correct_option'])
                 opts = [option_a, option_b, option_c, option_d]
-                user_choice = st.radio(f"Chọn đáp án câu {idx}:", opts, key=f"th_q_{q['id']}", index=None)
-                if st.button(f"Kiểm tra câu {idx}", key=f"btn_th_{q['id']}"):
-                    correct_map = {'A': option_a, 'B': option_b, 'C': option_c, 'D': option_d}
-                    if user_choice == correct_map.get(correct_option):
-                        st.success("🎉 Chính xác!")
+
+                # NẾU CÂU HỎI ĐÃ ĐƯỢC TRẢ LỜI TRONG SESSION NÀY
+                if ans_state_key in st.session_state:
+                    saved_data = st.session_state[ans_state_key]
+                    # Radio bị khóa (disabled), chọn sẵn đáp án đã trả lời
+                    st.radio(
+                        f"Chọn đáp án câu {current_idx + 1}:", 
+                        opts, 
+                        key=f"th_step_q_{q_id}_disabled", 
+                        index=opts.index(saved_data['user_choice']) if saved_data['user_choice'] in opts else None,
+                        disabled=True
+                    )
+                    
+                    # Hiển thị lại kết quả đã đánh giá
+                    if saved_data['is_correct']:
+                        st.success(f"🎉 **Đã hoàn thành:** Bạn đã trả lời CHÍNH XÁC câu này (+{saved_data['pts']} điểm).")
                     else:
-                        st.error(f"❌ Chưa đúng! Đáp án đúng là: {q['correct_option']}")
+                        st.error(f"❌ **Đã hoàn thành:** Câu này bạn trả lời CHƯA ĐÚNG ({saved_data['pts']} điểm). Đáp án đúng là: **{q['correct_option']}**")
+                    
                     if q['explanation']:
-                        st.info(f"💡 Giải thích: {q['explanation']}")
-                st.divider()
+                        st.info(f"💡 **Giải thích chi tiết:** {render_markdown_(q['explanation'])}")
+                        
+                # NẾU CÂU HỎI CHƯA TRẢ LỜI -> CHO PHÉP LÀM BÀI
+                else:
+                    with st.form(key=f"form_th_q_{q_id}"):
+                        user_choice = st.radio(
+                            f"Chọn đáp án câu {current_idx + 1}:", 
+                            opts, 
+                            key=f"th_step_q_{q_id}",#key=f"th_step_q_{q['id']}", 
+                            index=None
+                        )
+                        submitted = st.form_submit_button(f"🎯 Kiểm tra câu {current_idx + 1}")
+                    
+                    if submitted:
+                        if user_choice is None:
+                            st.warning("⚠️ Vui lòng chọn một đáp án trước khi kiểm tra!")
+                        else:
+                            correct_map = {'A': option_a, 'B': option_b, 'C': option_c, 'D': option_d}
+                            is_correct = (user_choice == correct_map.get(correct_option))
+
+                            # ID câu hỏi hiện tại
+                            question_id = current_lesson['id']
+                            # Khởi tạo trạng thái đã chấm điểm cho câu hỏi hiện tại nếu chưa có
+                            if f"answered_{question_id}" not in st.session_state:
+                                st.session_state[f"answered_{question_id}"] = False
+                            
+                            # Ghi điểm & Trừ điểm phạt
+                            pts_change = record_student_answer(
+                                user_id=user_id,
+                                lesson_id=current_lesson['id'],
+                                question_id=q['id'],
+                                subject_id=filter_data['subject']['id'],
+                                is_correct=is_correct,
+                                points_correct=10,
+                                points_penalty=5
+                            )
+                            # CHỈ CỘNG/TRỪ ĐIỂM NẾU CÂU HỎI NÀY CHƯA ĐƯỢC CHẤM
+                            if not st.session_state[f"answered_{question_id}"]:
+                                if is_correct:
+                                    st.balloons()
+                                    st.success(f"🎉 **Chính xác!** Bạn nhận được **+{pts_change} điểm**.")
+                                    add_points_on_correct_answer(user_id, pts_change)
+                                    # LƯU TRẠNG THÁI VÀO SESSION STATE ĐỂ KHÓA CÂU HỎI NGAY LẬP TỨC
+                                    st.session_state[ans_state_key] = {
+                                        'user_choice': user_choice,
+                                        'is_correct': is_correct,
+                                        'pts': pts_change
+                                    }
+                                else:
+                                    st.error(f"❌ **Chưa đúng!** Bạn bị trừ **{abs(pts_change)} điểm**. Đáp án đúng là: **{q['correct_option']}**")
+                                    add_points_on_correct_answer(user_id, pts_change)
+                                    # LƯU TRẠNG THÁI VÀO SESSION STATE ĐỂ KHÓA CÂU HỎI NGAY LẬP TỨC
+                                    st.session_state[ans_state_key] = {
+                                        'user_choice': user_choice,
+                                        'is_correct': is_correct,
+                                        'pts': pts_change
+                                    }
+                                
+                                if q['explanation']:
+                                    st.info(f"💡 **Giải thích chi tiết:** {render_markdown_(q['explanation'])}")
+
+                                # Đánh dấu câu này ĐÃ CHẤM XONG để không bị tính lại khi re-run
+                                st.session_state[f"answered_{question_id}"] = True
+                                # Rerun ngay lập tức để Sidebar cập nhật điểm & thanh Progress mới!
+                                st.rerun()
+
+            # Thanh Điều Hướng Next / Previous
+            c_prev, c_center, c_next = st.columns([1, 2, 1])
+            with c_prev:
+                if current_idx > 0:
+                    if st.button("⬅️ Câu Trước", key=f"prev_th_{current_lesson['id']}"):
+                        st.session_state[step_key] -= 1
+                        st.rerun()
+            with c_center:
+                if st.button("🔄 Làm lại từ câu 1", key=f"reset_th_{current_lesson['id']}"):
+                    st.session_state[step_key] = 0
+                    st.rerun()
+            with c_next:
+                if current_idx < total_t_q - 1:
+                    if st.button("Câu Tiếp ➡️", key=f"next_th_{current_lesson['id']}"):
+                        st.session_state[step_key] += 1
+                        st.rerun()
 
     # ==========================================
     # TAB 3: BÀI TẬP RÈN LUYỆN (TÍCH HỢP BỘ GÕ VISUAL MATH EDITOR)
@@ -230,14 +495,24 @@ def render_student_dashboard(filter_data):
         st.subheader("✍️ Bài Tập Rèn Luyện (Trắc nghiệm & Tự luận)")
         cursor.execute("SELECT * FROM questions WHERE lesson_id = ? AND exam_type = 'regular'", (current_lesson['id'],))
         practice_qs = cursor.fetchall()
+
         if not practice_qs:
             st.info("Chưa có bài tập rèn luyện cho bài học này.")
         else:
-            for idx, q in enumerate(practice_qs, 1):
+            total_p_q = len(practice_qs)
+            step_p_key = f"p_step_{current_lesson['id']}"
+            if step_p_key not in st.session_state:
+                st.session_state[step_p_key] = 0
+
+            curr_p_idx = st.session_state[step_p_key]
+            st.progress((curr_p_idx + 1) / total_p_q, text=f"Bài tập {curr_p_idx + 1} / {total_p_q}")
+
+            q = practice_qs[curr_p_idx]
+            
+            with st.container(border=True):
                 question_text = render_markdown_(q["question_text"])
-                st.markdown(f"**Câu {idx}: {question_text}**")
+                st.markdown(f"#### **Câu {curr_p_idx + 1}: {question_text}**")
                 
-                # Hiển thị ảnh câu hỏi nếu có
                 if q['image_path'] and os.path.exists(f"assets/images/{q['image_path']}"):
                     width = 450
                     numbers = [int(n) for n in re.findall(r"\d+", q['image_path'])]
@@ -245,62 +520,122 @@ def render_student_dashboard(filter_data):
                     if filtered_nums:
                         width = max(filtered_nums)
                     st.image(f"assets/images/{q['image_path']}", width=width)
-
+                # ------------------------------------------
+                # DẠNG 1: TRẮC NGHIỆM (MCQ)
+                # ------------------------------------------
                 if q['question_format'] == 'mcq':
                     option_a = render_markdown_(q['option_a'])
                     option_b = render_markdown_(q['option_b'])
                     option_c = render_markdown_(q['option_c'])
                     option_d = render_markdown_(q['option_d'])
                     correct_option = render_markdown_(q['correct_option'])
-                    explanation = render_markdown_(q['explanation'])
                     opts = [option_a, option_b, option_c, option_d]
-                    u_ans = st.radio(f"Chọn đáp án câu {idx}:", opts, key=f"pr_q_{q['id']}", index=None)
-                    if st.button(f"Kiểm tra câu {idx}", key=f"btn_pr_{q['id']}"):
-                        correct_map = {'A': option_a, 'B': option_b, 'C': option_c, 'D': option_d}
-                        if u_ans == correct_map.get(correct_option):
-                            st.success("🎉 Chính xác!")
+                    # ĐÃ TRẢ LỜI -> KHÓA CÂU HỎI
+                    if ans_state_key in st.session_state:
+                        saved_data = st.session_state[ans_state_key]
+                        st.radio(
+                            f"Chọn đáp án câu {curr_p_idx + 1}:", 
+                            opts, 
+                            key=f"pr_step_q_{q_id}_disabled", 
+                            index=opts.index(saved_data['user_choice']) if saved_data['user_choice'] in opts else None,
+                            disabled=True
+                        )
+                        if saved_data['is_correct']:
+                            st.success(f"🎉 **Đã hoàn thành:** Bạn đã trả lời CHÍNH XÁC (+{saved_data['pts']} điểm).")
                         else:
-                            st.error(f"❌ Chưa đúng! Đáp án đúng là: {correct_option}")
+                            st.error(f"❌ **Đã hoàn thành:** Câu này trả lời CHƯA ĐÚNG ({saved_data['pts']} điểm). Đáp án đúng: **{correct_option}**")
+                        
                         if q['explanation']:
-                            st.info(f"💡 Giải thích: {explanation}")
-                else:
-                    st.caption("✍️ Nhập công thức / câu trả lời của bạn:")
+                            st.info(f"💡 **Giải thích:** {render_markdown_(q['explanation'])}")
                     
-                    # TÍCH HỢP BỘ GÕ CONG THỨC VISUAL MATH EDITOR
-                    #essay_ans_latex = visual_math_editor(key=f"essay_{q['id']}")
-                    #1. Visual_math_editor
-                    #essay_ans_latex = visual_math_editor(key=f"essay_{q['id']}")
-                    #2. Textarea_preview
-                    #essay_ans_latex = textarea_preview(key=f"essay_{q['id']}",default_value="",height=220)
-                    #st.write("Dữ liệu LaTeX:")
-                    #st.code(essay_ans_latex)
-                    #3. Textarea_toolbar
-                    #essay_ans_latex = textarea_toolbar(key=f"essay_{q['id']}", height=200)
-                    #st.write("Dữ liệu LaTeX:",essay_ans_latex)
-                    #4. Simple_math_editor
-                    essay_ans_latex = simple_math_editor(key=f"essay_{q['id']}",height=200)
-                    #5. Latex_editor
-                    #essay_ans_latex = latex_editor(key=f"formula_{q['id']}")
-                    #6. Equation_editor
-                    #essay_ans_latex = equation_editor(key=f"equation_{q['id']}")
-                    
-                    if st.button(f"Nộp bài & Xem đáp án câu {idx}", key=f"btn_es_{q['id']}"):
-                        if essay_ans_latex:
-                            st.markdown("**Công thức bạn vừa nhập:**")
-                            st.latex(essay_ans_latex)
-                        
-                        essay_solution = render_markdown_(q['essay_solution'])
-                        explanation = render_markdown_(q['explanation'])
-                        
-                        st.markdown(f"**Đáp án mẫu:**\n{essay_solution}")
-                        if q['explanation']:
-                            st.info(f"💡 Hướng dẫn chi tiết: {explanation}")
-                        
-                        # Hiển thị explanation_image mới bổ sung nếu có
-                        if q.get('explanation_image') and os.path.exists(q['explanation_image']):
-                            st.image(q['explanation_image'], caption="Hình minh họa lời giải", width=450)
+                    # CHƯA TRẢ LỜI -> CHO BẤM LÀM BÀI
+                    else:
+                        with st.form(key=f"form_pr_q_{q_id}"):
+                            u_ans = st.radio(f"Chọn đáp án câu {curr_p_idx + 1}:", opts, key=f"pr_radio_active_{q_id}", index=None)
+                            submitted_pr = st.form_submit_button(f"🎯 Kiểm tra câu {curr_p_idx + 1}")
 
-                st.divider()
+                        if submitted_pr:
+                            if u_ans is None:
+                                st.warning("⚠️ Vui lòng chọn đáp án trước khi kiểm tra!")
+                            else:
+                                correct_map = {'A': option_a, 'B': option_b, 'C': option_c, 'D': option_d}
+                                is_correct = (u_ans == correct_map.get(correct_option))
+                                
+                                pts_change = record_student_answer(
+                                    user_id=user_id,
+                                    lesson_id=current_lesson['id'],
+                                    question_id=q_id,
+                                    subject_id=filter_data['subject']['id'],
+                                    is_correct=is_correct,
+                                    points_correct=20,
+                                    points_penalty=10
+                                )
+                                
+                                # Cộng/Trừ điểm Gamification
+                                add_points_on_correct_answer(user_id, pts_change)
+                                # LƯU TRẠNG THÁI VÀO SESSION STATE ĐỂ KHÓA CÂU HỎI NGAY LẬP TỨC
+                                st.session_state[ans_state_key] = {
+                                    'user_choice': u_ans,
+                                    'is_correct': is_correct,
+                                    'pts': pts_change
+                                }
+                                st.rerun()
+                # ------------------------------------------
+                # DẠNG 2: TỰ LUẬN (ESSAY)
+                # ------------------------------------------
+                else:
+                    # ĐÃ NỘP BÀI TỰ LUẬN
+                    # ĐÃ NỘP BÀI TỰ LUẬN
+                    if ans_state_key in st.session_state:
+                        saved_data = st.session_state[ans_state_key]
+                        
+                        st.success(f"🎉 **Đã hoàn thành nộp bài!** (+{saved_data['pts']} điểm nỗ lực)")
+                        if saved_data['essay_ans']:
+                            st.markdown("**Công thức / Bài làm đã nộp:**")
+                            st.latex(saved_data['essay_ans'])
+                            
+                        st.markdown(f"**Đáp án mẫu / Lời giải:**\n{render_markdown_(q['essay_solution'])}")
+                        if q['explanation']:
+                            st.info(f"💡 **Hướng dẫn chi tiết:** {render_markdown_(q['explanation'])}")
+                            
+                    # CHƯA NỘP BÀI TỰ LUẬN
+                    else:
+                        st.caption("✍️ Nhập công thức / câu trả lời của bạn:")
+                        essay_ans_latex = simple_math_editor(key=f"essay_step_{q_id}", height=200)
+                        
+                        if st.button(f"📤 Nộp bài & Xem đáp án câu {curr_p_idx + 1}", key=f"btn_step_es_{q_id}"):
+                            pts_change = record_student_answer(
+                                user_id=user_id,
+                                lesson_id=current_lesson['id'],
+                                question_id=q_id,
+                                subject_id=filter_data['subject']['id'],
+                                is_correct=True,
+                                points_correct=15,
+                                points_penalty=0
+                            )
+                            
+                            add_points_on_correct_answer(user_id, pts_change)
+                            
+                            st.session_state[ans_state_key] = {
+                                'essay_ans': essay_ans_latex,
+                                'pts': pts_change
+                            }
+                            st.rerun()
+
+            # Thanh Điều Hướng Next / Previous
+            cp_prev, cp_center, cp_next = st.columns([1, 2, 1])
+            with cp_prev:
+                if curr_p_idx > 0 and st.button("⬅️ Bài Trước", key=f"prev_pr_{current_lesson['id']}"):
+                    st.session_state[step_p_key] -= 1
+                    st.rerun()
+            with cp_center:
+                if st.button("🔄 Làm lại từ bài 1", key=f"reset_pr_{current_lesson['id']}"):
+                    st.session_state[step_p_key] = 0
+                    st.rerun()
+            with cp_next:
+                if curr_p_idx < total_p_q - 1 and st.button("Bài Tiếp ➡️", key=f"next_pr_{current_lesson['id']}"):
+                    st.session_state[step_p_key] += 1
+                    st.rerun()
 
     # ==========================================
     # TAB 4: ĐỀ THI ĐỊNH KỲ
