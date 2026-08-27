@@ -6,11 +6,32 @@ import pandas as pd
 import io
 import os
 import re
+import tempfile
 from services.db_connection import DB_PATH, get_connection
 from auth.auth_service import register_user, reset_password, toggle_user_status
-
+#BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+#DB_PATH = os.path.join(BASE_DIR, "data", "database.db")
 IMAGE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "images")
 os.makedirs(IMAGE_DIR, exist_ok=True)
+
+def get_db_backup_bytes(db_path):
+    # Tạo một file tạm thời
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tmp_file:
+        tmp_path = tmp_file.name
+
+    # Thực hiện copy an toàn từ DB gốc sang file tạm
+    src_conn = sqlite3.connect(db_path)
+    dst_conn = sqlite3.connect(tmp_path)
+    src_conn.backup(dst_conn)
+    
+    dst_conn.close()
+    src_conn.close()
+
+    # Đọc dữ liệu byte từ file tạm
+    with open(tmp_path, "rb") as f:
+        data = f.read()
+
+    return data
 
 def check_student_permission(user_role, grade_id, subject_id, semester_id):
     """
@@ -83,10 +104,11 @@ def render_admin_dashboard():
     # ==========================================
     with tab_users:
         st.subheader("👥 Quản Lý Tài Khoản Người Dùng")
-        sub_u1, sub_u2, sub_u3 = st.tabs([
+        sub_u1, sub_u2, sub_u3,sub_u4 = st.tabs([
             "📋 Danh Sách & Thao Tác", 
             "➕ Tạo Nhanh Tài Khoản Mới", 
-            "🔑 Phân Quyền (Roles)"
+            "🔑 Phân Quyền (Roles)",
+            "💾 Backup & Restore"
         ])
 
         with sub_u1:
@@ -145,144 +167,7 @@ def render_admin_dashboard():
                         if ok: st.success(msg)
                         else: st.error(msg)
 
-        # with sub_u3:
-        #     st.subheader("🔑 Cấu hình Phân Quyền Chi Tiết (Bảng Roles)")
-        #     conn = get_connection()
-        #     cursor = conn.cursor()
 
-        #     # Lấy danh sách users
-        #     cursor.execute("SELECT id, username, full_name, role FROM users ORDER BY id DESC")
-        #     users = cursor.fetchall()
-        #     user_dict = {f"{u['username']} - {u['full_name']} ({u['role']})": u for u in users}
-
-        #     selected_user_str = st.selectbox("Chọn tài khoản cần phân quyền:", list(user_dict.keys()))
-            
-        #     if selected_user_str:
-        #         selected_user = user_dict[selected_user_str]
-        #         user_id = selected_user['id']
-        #         user_role_type = selected_user['role']
-
-        #         # Lấy dữ liệu phân quyền hiện tại trong bảng roles (nếu có)
-        #         cursor.execute("SELECT * FROM roles WHERE user_id = ?", (user_id,))
-        #         current_role = cursor.fetchone()
-
-        #         # Đọc danh sách Lớp, Môn học để chọn Checkbox/Multiselect
-        #         cursor.execute("SELECT id, name FROM grades")
-        #         all_grades = cursor.fetchall()
-        #         cursor.execute("SELECT id, name FROM subjects")
-        #         all_subjects = cursor.fetchall()
-        #         cursor.execute("SELECT id, name FROM semesters")
-        #         all_semesters = cursor.fetchall()
-
-        #         # Lấy giá trị cũ
-        #         init_grades = current_role['allowed_grades'].split(',') if current_role and current_role['allowed_grades'] else []
-        #         init_subjects = current_role['allowed_subjects'].split(',') if current_role and current_role['allowed_subjects'] else []
-        #         init_semesters = current_role['allowed_semesters'].split(',') if current_role and current_role['allowed_semesters'] else []
-        #         init_tabs = current_role['allowed_tabs'].split(',') if current_role and current_role['allowed_tabs'] else []
-
-        #         with st.form(key=f"form_role_{user_id}"):
-        #             st.info(f"Đang phân quyền cho: **{selected_user['full_name']}** (Loại tài khoản gốc: `{user_role_type}`)")
-
-        #             if user_role_type == 'student':
-        #                 st.markdown("### 🎓 Phân Quyền Truy Cập Cho Học Sinh")
-                        
-        #                 # Chọn Lớp
-        #                 grade_options = {str(g['id']): g['name'] for g in all_grades}
-        #                 sel_grades = st.multiselect(
-        #                     "Khối lớp được phép truy cập:",
-        #                     options=list(grade_options.keys()),
-        #                     default=[g for g in init_grades if g in grade_options],
-        #                     format_func=lambda x: grade_options[x]
-        #                 )
-
-        #                 # Chọn Môn
-        #                 subj_options = {str(s['id']): s['name'] for s in all_subjects}
-        #                 sel_subjects = st.multiselect(
-        #                     "Môn học được phép truy cập:",
-        #                     options=list(subj_options.keys()),
-        #                     default=[s for s in init_subjects if s in subj_options],
-        #                     format_func=lambda x: subj_options[x]
-        #                 )
-
-        #                 # Chọn Học kỳ
-        #                 #sem_options = {"hk1": "Học kỳ 1", "hk2": "Học kỳ 2"}
-        #                 sem_options = {str(se['id']): se['name'] for se in all_semesters}
-        #                 sel_semesters = st.multiselect(
-        #                     "Học kỳ được phép truy cập:",
-        #                     options=list(sem_options.keys()),
-        #                     default=[s for s in init_semesters if s in sem_options],
-        #                     format_func=lambda x: sem_options[x]
-        #                 )
-
-        #                 sel_tabs_str = "*" # Học sinh cho phép hết hoặc không quản lý tab Admin
-
-        #             elif user_role_type == 'teacher':
-        #                 st.markdown("### 👩‍🏫 Phân Quyền Quản Lý & Chấm Điểm Cho Giáo Viên")
-
-        #                 # Multiselect chọn Lớp được phân công
-        #                 sel_grades = st.multiselect("Lớp phụ trách:", options=list(grade_options.keys()), default=[g for g in init_grades if g in grade_options], format_func=lambda x: grade_options[x])
-
-        #                 # Multiselect chọn Môn phụ trách
-        #                 sel_subjects = st.multiselect("Môn phụ trách:", options=list(subj_options.keys()), default=[s for s in init_subjects if s in subj_options], format_func=lambda x: subj_options[x])
-
-        #                 # Multiselect chọn Học kỳ phụ trách
-        #                 sel_semesters = st.multiselect("Học kỳ phụ trách:", options=list(sem_options.keys()), default=[s for s in init_semesters if s in sem_options], format_func=lambda x: sem_options[x])
-
-        #                 # Multiselect chọn các Tab Admin được phép thao tác (Ví dụ: Thêm bài học, Thêm câu hỏi,...)
-        #                 sel_tabs = st.multiselect("Các Tab Admin được phép sử dụng:", options=list(admin_tab_options.keys()), default=[t for t in init_tabs if t in admin_tab_options], format_func=lambda x: admin_tab_options[x])
-
-        #             else:  # Admin / Teacher
-        #                 st.markdown("### 🛠️ Phân Quyền Thao Tác Chức Năng Admin")
-                        
-        #                 admin_tab_options = {
-        #                     "tab_users": "👥 Quản Lý Người Dùng",
-        #                     "tab_import": "📥 Nhập Liệu Hàng Loạt",
-        #                     "tab_add_lesson": "📖 Thêm Bài Học",
-        #                     "tab_add_q": "❓ Thêm Câu Hỏi Bài Học",
-        #                     "tab_edit": "✏️ Sửa Bài Học / Câu Hỏi",
-        #                     "tab_exam_admin": "⏱️ Quản Lý Đề Thi Định Kỳ",
-        #                     "tab_manage": "📊 Thống Kê"
-        #                 }
-
-        #                 sel_tabs = st.multiselect(
-        #                     "Các Tab chức năng Admin được phép sử dụng:",
-        #                     options=list(admin_tab_options.keys()),
-        #                     default=[t for t in init_tabs if t in admin_tab_options],
-        #                     format_func=lambda x: admin_tab_options[x]
-        #                 )
-                        
-        #                 sel_grades_str = "*"
-        #                 sel_subjects_str = "*"
-        #                 sel_semesters_str = "*"
-        #                 sel_tabs_str = ",".join(sel_tabs)
-
-        #             btn_save_role = st.form_submit_button("💾 Lưu Quyền Hạn", use_container_width=True)
-
-        #             if btn_save_role:
-        #                 if user_role_type in ['student', 'teacher']:
-        #                     sel_grades_str = ",".join(sel_grades)
-        #                     sel_subjects_str = ",".join(sel_subjects)
-        #                     sel_semesters_str = ",".join(sel_semesters)
-        #                 if user_role_type == 'teacher':
-        #                     sel_tabs_str = ",".join(sel_tabs)
-
-        #                 if current_role:
-        #                     cursor.execute("""
-        #                         UPDATE roles 
-        #                         SET allowed_grades = ?, allowed_subjects = ?, allowed_semesters = ?, allowed_tabs = ?
-        #                         WHERE user_id = ?
-        #                     """, (sel_grades_str, sel_subjects_str, sel_semesters_str, sel_tabs_str, user_id))
-        #                 else:
-        #                     cursor.execute("""
-        #                         INSERT INTO roles (user_id, role_type, allowed_grades, allowed_subjects, allowed_semesters, allowed_tabs)
-        #                         VALUES (?, ?, ?, ?, ?, ?)
-        #                     """, (user_id, user_role_type, sel_grades_str, sel_subjects_str, sel_semesters_str, sel_tabs_str))
-
-        #                 conn.commit()
-        #                 st.success("🎉 Đã cập nhật quyền hạn thành công vào bảng `roles`!")
-        #                 st.rerun()
-
-        #     conn.close()
         with sub_u3:
             st.subheader("🔑 Cấu hình Phân Quyền Chi Tiết (Bảng Roles)")
             conn = get_connection()
@@ -437,8 +322,46 @@ def render_admin_dashboard():
                         conn.commit()
                         st.success("🎉 Đã cập nhật quyền hạn thành công vào bảng `roles`!")
                         st.rerun()
-
+        
             conn.close()
+        with sub_u4:
+            st.subheader("💾 Backup & Restore")
+            sub_u4_1, sub_u4_2, sub_u4_3 = st.tabs([
+            "💾 Backup file Database", 
+            "⬇️ Backup SQLite Backup API", 
+            "🔄 Restore file Database"
+        ])
+            with sub_u4_1:
+                
+                with open(DB_PATH, "rb") as fp:
+                    st.download_button(
+                        label="📦 Tải bản Backup Database (.db)",
+                        data=fp,
+                        file_name="backup_database.db",
+                        mime="application/x-sqlite3"
+                    )
+                
+            with sub_u4_2:
+                
+                db_bytes = get_db_backup_bytes(DB_PATH)
+                st.download_button(
+                    label="⬇️ Tải file Database (.db)",
+                    data=db_bytes,
+                    file_name="backup_system.db",
+                    mime="application/x-sqlite3"
+                )
+                
+            with sub_u4_3:            
+                
+                uploaded_file = st.file_uploader("Tải lên file backup (.db)", type=["db", "sqlite", "sqlite3"])
+
+                if uploaded_file is not None:
+                    if st.button("⚠️ Xác nhận khôi phục (Sẽ ghi đè dữ liệu)"):
+                        # Ghi đè file upload vào file database chính của ứng dụng
+                        with open("database.db", "wb") as f:
+                            f.write(uploaded_file.getbuffer())
+                        st.success("Khôi phục thành công! Vui lòng tải lại trang.")
+            
     # ==========================================
     # TAB 2: NHẬP LIỆU HÀNG LOẠT (JSON & EXCEL)
     # ==========================================
