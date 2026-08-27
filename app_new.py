@@ -10,6 +10,7 @@ from auth.auth_service import login_user, register_user
 from modules.sidebar import render_student_sidebar
 from modules.admin_views import render_admin_dashboard
 from modules.student_views import render_student_dashboard
+from modules.teacher_views import render_teacher_grading_dashboard
 
 st.set_page_config(page_title="Hệ Thống Học Tập THCS & THPT", page_icon="🎓", layout="wide")
 
@@ -73,6 +74,9 @@ else:
 
     if st.session_state.user['role'] == 'admin':
         render_admin_dashboard()
+    elif st.session_state.user['role'] == 'teacher':
+    # Render giao diện chấm điểm & quản lý dành cho Giáo viên
+        render_teacher_grading_dashboard(user_id,filters)
     else:
         #user_id = st.session_state.user['id']
         #filter_data = render_student_sidebar(user_id)
