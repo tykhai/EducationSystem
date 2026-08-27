@@ -3,6 +3,7 @@ import re
 import hashlib
 from services.db_connection import get_connection
 from datetime import datetime, date, timedelta
+from modules.student_views import recalculate_user_points_from_log
 
 def hash_password(password: str) -> str:
     """Hàm hash mật khẩu SHA-256 (Thay đổi nếu dự án dùng bcrypt)."""
@@ -11,11 +12,11 @@ def hash_password(password: str) -> str:
 def calculate_rank_and_next_goal(points):
     """Tính hạng hiện tại và mốc điểm năng lượng để thăng hạng tiếp theo."""
     ranks = [
-        ("🥉 Đồng", 0, 100, "#CD7F32"),
-        ("🥈 Bạc", 100, 250, "#C0C0C0"),
-        ("🥇 Vàng", 250, 500, "#FFD700"),
-        ("🏆 Bạch Kim", 500, 1000, "#E0E0E0"),
-        ("💎 Kim Cương", 1000, 2000, "#00E5FF")
+        ("🥉 Đồng", 0, 200, "#CD7F32"),
+        ("🥈 Bạc", 200, 500, "#C0C0C0"),
+        ("🥇 Vàng", 500, 1000, "#FFD700"),
+        ("🏆 Bạch Kim", 1000, 2000, "#E0E0E0"),
+        ("💎 Kim Cương", 2000, 5000, "#00E5FF")
     ]
     
     for name, low, high, color in ranks:
@@ -25,7 +26,7 @@ def calculate_rank_and_next_goal(points):
             return name, color, high, needed, min(progress, 1.0)
             
     # Hạng cao nhất Kim Cương
-    return "💎 Kim Cương", "#00E5FF", 2000, 0, 1.0
+    return "💎 Kim Cương", "#00E5FF", 5000, 0, 1.0
 
 def ensure_user_gamification(user_id):
     """Khởi tạo bản ghi Gamification cho học sinh nếu chưa tồn tại trong Database."""
@@ -58,6 +59,42 @@ def show_user_profile_dialog(user_id):
     conn = get_connection()
     cursor = conn.cursor()
     
+    current_role = st.session_state.user.get('role', '').lower()
+    
+    # Nếu là admin hoặc teacher thì chỉ hiện Tab Đổi Mật Khẩu
+    if current_role in ['admin', 'teacher']:
+        st.markdown(f"**Họ và tên:** {st.session_state.user['full_name']}")
+        st.markdown(f"**Tài khoản:** {st.session_state.user['username']}")
+        st.markdown(f"**Vai trò:** `{st.session_state.user['role'].upper()}`")
+        st.divider()
+        
+        st.subheader("Đổi Mật Khẩu")
+        with st.form("dialog_form_change_pass"):
+            old_pass = st.text_input("Mật khẩu hiện tại", type="password")
+            new_pass = st.text_input("Mật khẩu mới", type="password")
+            confirm_pass = st.text_input("Xác nhận mật khẩu mới", type="password")
+            
+            if st.form_submit_button("Lưu Mật Khẩu Mới", use_container_width=True):
+                if not old_pass or not new_pass:
+                    st.warning("Vui lòng điền đầy đủ các trường.")
+                elif new_pass != confirm_pass:
+                    st.error("Mật khẩu mới không trùng khớp.")
+                else:
+                    cursor.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,))
+                    u = cursor.fetchone()
+                    
+                    hashed_old = hash_password(old_pass)
+                    if u and (u['password_hash'] == old_pass or u['password_hash'] == hashed_old):
+                        hashed_new = hash_password(new_pass)
+                        cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (hashed_new, user_id))
+                        conn.commit()
+                        st.success("🎉 Đổi mật khẩu thành công!")
+                    else:
+                        st.error("❌ Mật khẩu hiện tại không chính xác.")
+        conn.close()
+        return
+
+    # Đối với Học Sinh: Hiển thị đủ 3 Tabs
     tab1, tab2, tab3 = st.tabs(["🔑 Tài khoản & Đổi MK", "📅 Lịch Chuỗi Học (Heatmap)", "🎯 Chỉ Số Học Đều Môn"])
     
     # --- TAB 1: ĐỔI MẬT KHẨU ---
@@ -82,7 +119,6 @@ def show_user_profile_dialog(user_id):
                     cursor.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,))
                     u = cursor.fetchone()
                     
-                    # So sánh dạng Hash (Nếu DB bạn lưu text thô, bỏ hash_password)
                     hashed_old = hash_password(old_pass)
                     if u and (u['password_hash'] == old_pass or u['password_hash'] == hashed_old):
                         hashed_new = hash_password(new_pass)
@@ -92,7 +128,7 @@ def show_user_profile_dialog(user_id):
                     else:
                         st.error("❌ Mật khẩu hiện tại không chính xác.")
 
-    # --- TAB 2: LỊCH CHUỖI NGÀY HỌC (SỬA LỖI HÔM NAY HIỆN ⏳ CHƯA LÀM / 🔥 ĐÃ LÀM) ---
+    # --- TAB 2: LỊCH CHUỖI NGÀY HỌC ---
     with tab2:
         st.subheader("📅 Chi Tiết Chuỗi Ngày Học Trong Tuần")
         today = date.today()
@@ -122,12 +158,12 @@ def show_user_profile_dialog(user_id):
                 bg_color = "#E8F5E9"
                 border = "1px solid #4CAF50"
             elif is_today:
-                status_icon = "⏳"  # ĐÚNG YÊU CẦU: Hôm nay chưa làm hiện ⏳
+                status_icon = "⏳"
                 status_text = "Hôm nay"
                 bg_color = "#FFFDE7"
                 border = "2px solid #FFC107"
             elif is_past:
-                status_icon = "❌"  # Ngày đã qua bỏ lỡ hiện ❌
+                status_icon = "❌"
                 status_text = "Bỏ lỡ"
                 bg_color = "#FFEBEE"
                 border = "1px solid #FF5252"
@@ -182,10 +218,12 @@ def show_user_profile_dialog(user_id):
 
 def render_student_sidebar_gamification(user_id):
     """Hiển thị bảng năng lượng, đổi mật khẩu và điểm số học đều môn ngay dưới Sidebar."""
-    conn = get_connection()
-    cursor = conn.cursor()
+    
+    user_role = st.session_state.user.get('role', '').lower()
     
     # 1. ĐỔI MẬT KHẨU
+    conn = get_connection()
+    cursor = conn.cursor()
     with st.sidebar.expander("🔑 Đổi Mật Khẩu", expanded=False):
         with st.form("form_change_pass"):
             old_pass = st.text_input("Mật khẩu hiện tại", type="password")
@@ -205,9 +243,14 @@ def render_student_sidebar_gamification(user_id):
                         st.success("🎉 Đổi mật khẩu thành công!")
                     else:
                         st.error("❌ Mật khẩu hiện tại không đúng.")
+                        
+    # ẨN GAMIFICATION VÀ THANH NĂNG LƯỢNG CHO ADMIN VÀ TEACHER
+    if user_role in ['admin', 'teacher']:
+        conn.close()
+        return
 
-    # 2. GAMIFICATION SUMMARY & THANH NĂNG LƯỢNG
-    g_data = ensure_user_gamification(user_id)
+    # 2. GAMIFICATION SUMMARY & THANH NĂNG LƯỢNG (CHỈ DÀNH CHO HỌC SINH)
+    g_data = ensure_user_gamification(user_id)  
     
     if not g_data:
         st.sidebar.info("Làm câu hỏi đầu tiên để kích hoạt Gamification!")
@@ -217,7 +260,6 @@ def render_student_sidebar_gamification(user_id):
     st.sidebar.markdown("---")
     st.sidebar.subheader("⚡ Năng Lượng & Thăng Hạng")
 
-    # Chọn chu kỳ điểm năng lượng
     period = st.sidebar.selectbox("Chu kỳ tích điểm:", ["Tháng này", "Tuần này", "Hôm nay", "Học kỳ 1"], index=0)
     
     pts = g_data['monthly_points']
@@ -230,7 +272,6 @@ def render_student_sidebar_gamification(user_id):
     st.sidebar.markdown(f"**Danh hiệu:** <span style='color:{rank_color}; font-weight:bold;'>{rank_name}</span>", unsafe_allow_html=True)
     st.sidebar.markdown(f"**Điểm năng lượng ({period}):** `{pts} / {next_goal} PTS`")
     
-    # Thanh Progress Bar Năng Lượng
     st.sidebar.progress(energy_progress, text=f"Còn {needed_pts}đ để thăng cấp 🚀")
 
     # 3. LỊCH CHUỖI NGÀY HỌC TRONG TUẦN (WEEKLY HEATMAP)
@@ -238,9 +279,8 @@ def render_student_sidebar_gamification(user_id):
     st.sidebar.subheader("📅 Lịch Chuỗi Học Trong Tuần")
     
     today = date.today()
-    start_of_week = today - timedelta(days=today.weekday()) # Thứ 2
+    start_of_week = today - timedelta(days=today.weekday())
     
-    # Lấy danh sách các ngày trong tuần học sinh có hoạt động
     cursor.execute("""
         SELECT DISTINCT DATE(answered_at) as act_date 
         FROM user_answer_logs 
@@ -260,19 +300,19 @@ def render_student_sidebar_gamification(user_id):
         has_learned = day_str in active_days
         
         if has_learned:
-                status_icon = "🔥"
-                bg_color = "#E8F5E9"  # Xanh lá nhẹ
-                border = "1px solid #4CAF50"
+            status_icon = "🔥"
+            bg_color = "#E8F5E9"
+            border = "1px solid #4CAF50"
         elif is_past:
-            status_icon = "❌"      # Tiếc nuối ngày đã qua không học
-            bg_color = "#FFEBEE"  # Đỏ nhẹ
+            status_icon = "❌"
+            bg_color = "#FFEBEE"
             border = "1px solid #FF5252"
         elif is_today:
-            status_icon = "⏳"      # Hôm nay chưa hoàn thành
-            bg_color = "#FFFDE7"  # Vàng nhẹ
+            status_icon = "⏳"
+            bg_color = "#FFFDE7"
             border = "1px solid #FFC107"
         else:
-            status_icon = "⚪"      # Ngày tương lai
+            status_icon = "⚪"
             bg_color = "#F5F5F5"
             border = "1px solid #E0E0E0"
             
@@ -351,8 +391,8 @@ def get_user_role(user_id):
     return role
 
 def render_student_sidebar(user_id):
-    g_data = ensure_user_gamification(user_id)
-    
+    user_role = st.session_state.user.get('role', '').lower()
+
     # 1. Bấm vào Tên -> Mở Pop-up Hồ sơ
     col_name, col_logout = st.sidebar.columns([3, 1])
     with col_name:
@@ -365,25 +405,27 @@ def render_student_sidebar(user_id):
 
     st.sidebar.markdown("---")
 
-    # 2. GAMIFICATION COMPACT (Mặc định chu kỳ: HÔM NAY)
-    # Lựa chọn chu kỳ chuyển vào mảng nhỏ
-    period = st.sidebar.selectbox("Chu kỳ tích điểm:", ["Hôm nay", "Tuần này", "Tháng này", "Học kỳ 1"], index=0)
-    
-    pts = g_data['daily_points']
-    if period == "Tuần này": pts = g_data['weekly_points']
-    elif period == "Tháng này": pts = g_data['monthly_points']
-    elif period == "Học kỳ 1": pts = g_data['semester1_points']
+    # 2. GAMIFICATION COMPACT (Chỉ hiển thị đối với Học Sinh - Không phải Admin & Teacher)
+    if user_role not in ['admin', 'teacher']:
+        if 'user_points' not in st.session_state:
+            recalculate_user_points_from_log(user_id)
+        g_data = ensure_user_gamification(user_id)
+        
+        period = st.sidebar.selectbox("Chu kỳ tích điểm:", ["Hôm nay", "Tuần này", "Tháng này", "Học kỳ 1"], index=0)
+        
+        pts = g_data['daily_points']
+        if period == "Tuần này": pts = g_data['weekly_points']
+        elif period == "Tháng này": pts = g_data['monthly_points']
+        elif period == "Học kỳ 1": pts = g_data['semester1_points']
 
-    rank_name, rank_color, next_goal, needed_pts, energy_progress = calculate_rank_and_next_goal(pts)
+        rank_name, rank_color, next_goal, needed_pts, energy_progress = calculate_rank_and_next_goal(pts)
 
-    # Hiển thị ngắn gọn
-    st.sidebar.markdown(f"Danh hiệu: <span style='color:{rank_color}; font-weight:bold;'>{rank_name}</span> | 🔥 **{g_data['current_streak']} ngày**", unsafe_allow_html=True)
-    st.sidebar.markdown(f"Điểm ({period}): **{pts} / {next_goal} PTS**")
-    
-    # Thanh Progress bar năng lượng
-    st.sidebar.progress(energy_progress, text=f"Còn {needed_pts}đ để thăng cấp 🚀" if needed_pts > 0 else "Đã đạt đỉnh Kim Cương! 👑")
+        st.sidebar.markdown(f"Danh hiệu: <span style='color:{rank_color}; font-weight:bold;'>{rank_name}</span> | 🔥 **{g_data['current_streak']} ngày**", unsafe_allow_html=True)
+        st.sidebar.markdown(f"Điểm ({period}): **{pts} / {next_goal} PTS**")
+        
+        st.sidebar.progress(energy_progress, text=f"Còn {needed_pts}đ để thăng cấp 🚀" if needed_pts > 0 else "Đã đạt đỉnh Kim Cương! 👑")
 
-    st.sidebar.markdown("---")
+        st.sidebar.markdown("---")
 
     # 3. DANH MỤC HỌC TẬP (Lọc Lớp -> Môn -> Học kỳ -> Bài học)
     st.sidebar.subheader("📚 Danh Mục Học Tập")
@@ -452,98 +494,3 @@ def render_student_sidebar(user_id):
         "lessons": lessons,
         "lesson": sel_lesson
     }
-    # # 1. Thông tin Vai trò & Đăng xuất
-    # st.sidebar.title(f"👤 {st.session_state.user['full_name']}")
-    # st.sidebar.caption(f"Vai trò: **{st.session_state.user['role'].upper()}**")
-    
-    # if st.sidebar.button("🚪 Đăng xuất", use_container_width=True):
-    #     st.session_state.user = None
-    #     st.rerun()
-
-    # st.sidebar.divider()
-
-    # # 2. Hiển thị Đổi Mật Khẩu & Gamification Sidebar
-    # render_student_sidebar_gamification(user_id)
-    # # 3. Danh mục Học tập & Phân quyền Filter Data
-    # st.sidebar.markdown("---")    
-    # st.sidebar.title("📚 Danh Mục Học Tập")
-    
-    # role = get_user_role(user_id)
-    # if not role:
-    #     st.sidebar.error("⚠️ Tài khoản chưa được cấp quyền học tập. Vui lòng liên hệ Admin.")
-    #     return None
-
-    # allowed_grades = parse_allowed_ids(role['allowed_grades'])
-    # allowed_subjects = parse_allowed_ids(role['allowed_subjects'])
-    # allowed_semesters = parse_allowed_ids(role['allowed_semesters'])
-
-    # conn = get_connection()
-    # cursor = conn.cursor()
-
-    # # 1. Lọc Khối Lớp
-    # cursor.execute("SELECT * FROM grades")
-    # all_grades = cursor.fetchall()
-    # if "*" not in allowed_grades:
-    #     filtered_grades = [g for g in all_grades if str(g['id']) in allowed_grades or g.get('code') in allowed_grades]
-    # else:
-    #     filtered_grades = all_grades
-
-    # if not filtered_grades:
-    #     st.sidebar.warning("🔒 Bạn chưa được gán Khối lớp nào.")
-    #     conn.close()
-    #     return None
-
-    # sel_grade = st.sidebar.selectbox("Chọn Lớp:", filtered_grades, format_func=lambda x: x['name'])
-
-    # # 2. Lọc Môn Học
-    # cursor.execute("SELECT * FROM subjects")
-    # all_subjects = cursor.fetchall()
-    # if "*" not in allowed_subjects:
-    #     filtered_subjects = [s for s in all_subjects if str(s['id']) in allowed_subjects or s.get('code') in allowed_subjects]
-    # else:
-    #     filtered_subjects = all_subjects
-
-    # if not filtered_subjects:
-    #     st.sidebar.warning("🔒 Bạn chưa được gán Môn học nào.")
-    #     conn.close()
-    #     return None
-
-    # sel_subject = st.sidebar.selectbox("Chọn Môn:", filtered_subjects, format_func=lambda x: x['name'])
-
-    # # 3. Lọc Học Kỳ
-    # cursor.execute("SELECT id,name FROM semesters")
-    # all_semesters = cursor.fetchall()
-    # if "*" not in allowed_semesters:
-    #     filtered_semesters = [se for se in all_semesters if str(se['id']) in allowed_semesters or se.get('code') in allowed_semesters]
-    # else:
-    #     filtered_semesters = all_semesters
-
-    # if not filtered_semesters:
-    #     st.sidebar.warning("🔒 Bạn chưa được gán Học Kỳ nào.")
-    #     conn.close()
-    #     return None
-
-    # sel_semester = st.sidebar.selectbox("Chọn Học kỳ:", filtered_semesters, format_func=lambda x: x['name'])
-
-    # # 4. Lấy danh sách Bài học khả dụng theo Lớp + Môn + Học kỳ
-    # cursor.execute("""
-    #     SELECT * FROM lessons 
-    #     WHERE grade_id = ? AND subject_id = ? AND semester_id = ?
-    # """, (sel_grade['id'], sel_subject['id'], sel_semester['id']))
-    # lessons = cursor.fetchall()
-    
-    # sel_lesson = None
-    # if lessons:
-    #     sel_lesson = st.sidebar.selectbox("Chọn Bài học:", lessons, format_func=lambda x: f"{x['chapter_name']} - {x['title']}")
-    # else:
-    #     st.sidebar.info("📌 Chưa có bài học nào.")
-
-    # conn.close()
-
-    # return {
-    #     "grade": sel_grade,
-    #     "subject": sel_subject,
-    #     "semester": sel_semester,
-    #     "lessons": lessons,
-    #     "lesson": sel_lesson
-    # }

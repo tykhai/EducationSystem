@@ -133,7 +133,9 @@ def render_admin_dashboard():
                     new_u_pass = st.text_input("Mật khẩu:", type="password")
                 with c_u2:
                     new_u_fullname = st.text_input("Họ và tên:")
-                    new_u_role = st.selectbox("Vai trò:", ["student", "admin"], format_func=lambda x: "Học sinh" if x == "student" else "Quản trị viên (Admin)")
+                    #new_u_role = st.selectbox("Vai trò:", ["student", "admin","Teacher"], format_func=lambda x: "Học sinh" if x == "student" else "Quản trị viên (Admin)" if x == "admin" else "Giáo viên")
+                    new_u_role = st.selectbox("Vai trò:", ["student", "teacher", "admin"], format_func=lambda x: "Học sinh" if x == "student" else ("Giáo viên" if x == "teacher" else "Quản trị viên (Admin)")
+)
 
                 if st.form_submit_button("➕ Tạo Tài Khoản", use_container_width=True):
                     if not new_u_name or not new_u_pass or not new_u_fullname:
@@ -143,6 +145,144 @@ def render_admin_dashboard():
                         if ok: st.success(msg)
                         else: st.error(msg)
 
+        # with sub_u3:
+        #     st.subheader("🔑 Cấu hình Phân Quyền Chi Tiết (Bảng Roles)")
+        #     conn = get_connection()
+        #     cursor = conn.cursor()
+
+        #     # Lấy danh sách users
+        #     cursor.execute("SELECT id, username, full_name, role FROM users ORDER BY id DESC")
+        #     users = cursor.fetchall()
+        #     user_dict = {f"{u['username']} - {u['full_name']} ({u['role']})": u for u in users}
+
+        #     selected_user_str = st.selectbox("Chọn tài khoản cần phân quyền:", list(user_dict.keys()))
+            
+        #     if selected_user_str:
+        #         selected_user = user_dict[selected_user_str]
+        #         user_id = selected_user['id']
+        #         user_role_type = selected_user['role']
+
+        #         # Lấy dữ liệu phân quyền hiện tại trong bảng roles (nếu có)
+        #         cursor.execute("SELECT * FROM roles WHERE user_id = ?", (user_id,))
+        #         current_role = cursor.fetchone()
+
+        #         # Đọc danh sách Lớp, Môn học để chọn Checkbox/Multiselect
+        #         cursor.execute("SELECT id, name FROM grades")
+        #         all_grades = cursor.fetchall()
+        #         cursor.execute("SELECT id, name FROM subjects")
+        #         all_subjects = cursor.fetchall()
+        #         cursor.execute("SELECT id, name FROM semesters")
+        #         all_semesters = cursor.fetchall()
+
+        #         # Lấy giá trị cũ
+        #         init_grades = current_role['allowed_grades'].split(',') if current_role and current_role['allowed_grades'] else []
+        #         init_subjects = current_role['allowed_subjects'].split(',') if current_role and current_role['allowed_subjects'] else []
+        #         init_semesters = current_role['allowed_semesters'].split(',') if current_role and current_role['allowed_semesters'] else []
+        #         init_tabs = current_role['allowed_tabs'].split(',') if current_role and current_role['allowed_tabs'] else []
+
+        #         with st.form(key=f"form_role_{user_id}"):
+        #             st.info(f"Đang phân quyền cho: **{selected_user['full_name']}** (Loại tài khoản gốc: `{user_role_type}`)")
+
+        #             if user_role_type == 'student':
+        #                 st.markdown("### 🎓 Phân Quyền Truy Cập Cho Học Sinh")
+                        
+        #                 # Chọn Lớp
+        #                 grade_options = {str(g['id']): g['name'] for g in all_grades}
+        #                 sel_grades = st.multiselect(
+        #                     "Khối lớp được phép truy cập:",
+        #                     options=list(grade_options.keys()),
+        #                     default=[g for g in init_grades if g in grade_options],
+        #                     format_func=lambda x: grade_options[x]
+        #                 )
+
+        #                 # Chọn Môn
+        #                 subj_options = {str(s['id']): s['name'] for s in all_subjects}
+        #                 sel_subjects = st.multiselect(
+        #                     "Môn học được phép truy cập:",
+        #                     options=list(subj_options.keys()),
+        #                     default=[s for s in init_subjects if s in subj_options],
+        #                     format_func=lambda x: subj_options[x]
+        #                 )
+
+        #                 # Chọn Học kỳ
+        #                 #sem_options = {"hk1": "Học kỳ 1", "hk2": "Học kỳ 2"}
+        #                 sem_options = {str(se['id']): se['name'] for se in all_semesters}
+        #                 sel_semesters = st.multiselect(
+        #                     "Học kỳ được phép truy cập:",
+        #                     options=list(sem_options.keys()),
+        #                     default=[s for s in init_semesters if s in sem_options],
+        #                     format_func=lambda x: sem_options[x]
+        #                 )
+
+        #                 sel_tabs_str = "*" # Học sinh cho phép hết hoặc không quản lý tab Admin
+
+        #             elif user_role_type == 'teacher':
+        #                 st.markdown("### 👩‍🏫 Phân Quyền Quản Lý & Chấm Điểm Cho Giáo Viên")
+
+        #                 # Multiselect chọn Lớp được phân công
+        #                 sel_grades = st.multiselect("Lớp phụ trách:", options=list(grade_options.keys()), default=[g for g in init_grades if g in grade_options], format_func=lambda x: grade_options[x])
+
+        #                 # Multiselect chọn Môn phụ trách
+        #                 sel_subjects = st.multiselect("Môn phụ trách:", options=list(subj_options.keys()), default=[s for s in init_subjects if s in subj_options], format_func=lambda x: subj_options[x])
+
+        #                 # Multiselect chọn Học kỳ phụ trách
+        #                 sel_semesters = st.multiselect("Học kỳ phụ trách:", options=list(sem_options.keys()), default=[s for s in init_semesters if s in sem_options], format_func=lambda x: sem_options[x])
+
+        #                 # Multiselect chọn các Tab Admin được phép thao tác (Ví dụ: Thêm bài học, Thêm câu hỏi,...)
+        #                 sel_tabs = st.multiselect("Các Tab Admin được phép sử dụng:", options=list(admin_tab_options.keys()), default=[t for t in init_tabs if t in admin_tab_options], format_func=lambda x: admin_tab_options[x])
+
+        #             else:  # Admin / Teacher
+        #                 st.markdown("### 🛠️ Phân Quyền Thao Tác Chức Năng Admin")
+                        
+        #                 admin_tab_options = {
+        #                     "tab_users": "👥 Quản Lý Người Dùng",
+        #                     "tab_import": "📥 Nhập Liệu Hàng Loạt",
+        #                     "tab_add_lesson": "📖 Thêm Bài Học",
+        #                     "tab_add_q": "❓ Thêm Câu Hỏi Bài Học",
+        #                     "tab_edit": "✏️ Sửa Bài Học / Câu Hỏi",
+        #                     "tab_exam_admin": "⏱️ Quản Lý Đề Thi Định Kỳ",
+        #                     "tab_manage": "📊 Thống Kê"
+        #                 }
+
+        #                 sel_tabs = st.multiselect(
+        #                     "Các Tab chức năng Admin được phép sử dụng:",
+        #                     options=list(admin_tab_options.keys()),
+        #                     default=[t for t in init_tabs if t in admin_tab_options],
+        #                     format_func=lambda x: admin_tab_options[x]
+        #                 )
+                        
+        #                 sel_grades_str = "*"
+        #                 sel_subjects_str = "*"
+        #                 sel_semesters_str = "*"
+        #                 sel_tabs_str = ",".join(sel_tabs)
+
+        #             btn_save_role = st.form_submit_button("💾 Lưu Quyền Hạn", use_container_width=True)
+
+        #             if btn_save_role:
+        #                 if user_role_type in ['student', 'teacher']:
+        #                     sel_grades_str = ",".join(sel_grades)
+        #                     sel_subjects_str = ",".join(sel_subjects)
+        #                     sel_semesters_str = ",".join(sel_semesters)
+        #                 if user_role_type == 'teacher':
+        #                     sel_tabs_str = ",".join(sel_tabs)
+
+        #                 if current_role:
+        #                     cursor.execute("""
+        #                         UPDATE roles 
+        #                         SET allowed_grades = ?, allowed_subjects = ?, allowed_semesters = ?, allowed_tabs = ?
+        #                         WHERE user_id = ?
+        #                     """, (sel_grades_str, sel_subjects_str, sel_semesters_str, sel_tabs_str, user_id))
+        #                 else:
+        #                     cursor.execute("""
+        #                         INSERT INTO roles (user_id, role_type, allowed_grades, allowed_subjects, allowed_semesters, allowed_tabs)
+        #                         VALUES (?, ?, ?, ?, ?, ?)
+        #                     """, (user_id, user_role_type, sel_grades_str, sel_subjects_str, sel_semesters_str, sel_tabs_str))
+
+        #                 conn.commit()
+        #                 st.success("🎉 Đã cập nhật quyền hạn thành công vào bảng `roles`!")
+        #                 st.rerun()
+
+        #     conn.close()
         with sub_u3:
             st.subheader("🔑 Cấu hình Phân Quyền Chi Tiết (Bảng Roles)")
             conn = get_connection()
@@ -164,13 +304,28 @@ def render_admin_dashboard():
                 cursor.execute("SELECT * FROM roles WHERE user_id = ?", (user_id,))
                 current_role = cursor.fetchone()
 
-                # Đọc danh sách Lớp, Môn học để chọn Checkbox/Multiselect
+                # Đọc danh sách Lớp, Môn học, Học kỳ
                 cursor.execute("SELECT id, name FROM grades")
                 all_grades = cursor.fetchall()
                 cursor.execute("SELECT id, name FROM subjects")
                 all_subjects = cursor.fetchall()
                 cursor.execute("SELECT id, name FROM semesters")
                 all_semesters = cursor.fetchall()
+
+                # SỬA/THÊM: Khởi tạo dictionary Lớp, Môn, Học kỳ ở NGOÀI ĐÂY để dùng chung cho cả Student và Teacher
+                grade_options = {str(g['id']): g['name'] for g in all_grades}
+                subj_options = {str(s['id']): s['name'] for s in all_subjects}
+                sem_options = {str(se['id']): se['name'] for se in all_semesters}
+                
+                admin_tab_options = {
+                    "tab_users": "👥 Quản Lý Người Dùng",
+                    "tab_import": "📥 Nhập Liệu Hàng Loạt",
+                    "tab_add_lesson": "📖 Thêm Bài Học",
+                    "tab_add_q": "❓ Thêm Câu Hỏi Bài Học",
+                    "tab_edit": "✏️ Sửa Bài Học / Câu Hỏi",
+                    "tab_exam_admin": "⏱️ Quản Lý Đề Thi Định Kỳ",
+                    "tab_manage": "📊 Thống Kê"
+                }
 
                 # Lấy giá trị cũ
                 init_grades = current_role['allowed_grades'].split(',') if current_role and current_role['allowed_grades'] else []
@@ -184,8 +339,6 @@ def render_admin_dashboard():
                     if user_role_type == 'student':
                         st.markdown("### 🎓 Phân Quyền Truy Cập Cho Học Sinh")
                         
-                        # Chọn Lớp
-                        grade_options = {str(g['id']): g['name'] for g in all_grades}
                         sel_grades = st.multiselect(
                             "Khối lớp được phép truy cập:",
                             options=list(grade_options.keys()),
@@ -193,8 +346,6 @@ def render_admin_dashboard():
                             format_func=lambda x: grade_options[x]
                         )
 
-                        # Chọn Môn
-                        subj_options = {str(s['id']): s['name'] for s in all_subjects}
                         sel_subjects = st.multiselect(
                             "Môn học được phép truy cập:",
                             options=list(subj_options.keys()),
@@ -202,9 +353,6 @@ def render_admin_dashboard():
                             format_func=lambda x: subj_options[x]
                         )
 
-                        # Chọn Học kỳ
-                        #sem_options = {"hk1": "Học kỳ 1", "hk2": "Học kỳ 2"}
-                        sem_options = {str(se['id']): se['name'] for se in all_semesters}
                         sel_semesters = st.multiselect(
                             "Học kỳ được phép truy cập:",
                             options=list(sem_options.keys()),
@@ -212,20 +360,41 @@ def render_admin_dashboard():
                             format_func=lambda x: sem_options[x]
                         )
 
-                        sel_tabs_str = "*" # Học sinh cho phép hết hoặc không quản lý tab Admin
+                        sel_tabs_str = "*"
 
-                    else:  # Admin / Teacher
-                        st.markdown("### 🛠️ Phân Quyền Thao Tác Chức Năng Admin")
+                    elif user_role_type == 'teacher':
+                        st.markdown("### 👩‍🏫 Phân Quyền Cho Giáo Viên")
                         
-                        admin_tab_options = {
-                            "tab_users": "👥 Quản Lý Người Dùng",
-                            "tab_import": "📥 Nhập Liệu Hàng Loạt",
-                            "tab_add_lesson": "📖 Thêm Bài Học",
-                            "tab_add_q": "❓ Thêm Câu Hỏi Bài Học",
-                            "tab_edit": "✏️ Sửa Bài Học / Câu Hỏi",
-                            "tab_exam_admin": "⏱️ Quản Lý Đề Thi Định Kỳ",
-                            "tab_manage": "📊 Thống Kê"
-                        }
+                        sel_grades = st.multiselect(
+                            "Khối lớp phụ trách:",
+                            options=list(grade_options.keys()),
+                            default=[g for g in init_grades if g in grade_options],
+                            format_func=lambda x: grade_options[x]
+                        )
+
+                        sel_subjects = st.multiselect(
+                            "Môn học phụ trách:",
+                            options=list(subj_options.keys()),
+                            default=[s for s in init_subjects if s in subj_options],
+                            format_func=lambda x: subj_options[x]
+                        )
+
+                        sel_semesters = st.multiselect(
+                            "Học kỳ phụ trách:",
+                            options=list(sem_options.keys()),
+                            default=[s for s in init_semesters if s in sem_options],
+                            format_func=lambda x: sem_options[x]
+                        )
+
+                        sel_tabs = st.multiselect(
+                            "Các Tab Admin được phép thao tác:",
+                            options=list(admin_tab_options.keys()),
+                            default=[t for t in init_tabs if t in admin_tab_options],
+                            format_func=lambda x: admin_tab_options[x]
+                        )
+
+                    else:  # Admin
+                        st.markdown("### 🛠️ Phân Quyền Thao Tác Chức Năng Admin")
 
                         sel_tabs = st.multiselect(
                             "Các Tab chức năng Admin được phép sử dụng:",
@@ -237,7 +406,6 @@ def render_admin_dashboard():
                         sel_grades_str = "*"
                         sel_subjects_str = "*"
                         sel_semesters_str = "*"
-                        sel_tabs_str = ",".join(sel_tabs)
 
                     btn_save_role = st.form_submit_button("💾 Lưu Quyền Hạn", use_container_width=True)
 
@@ -246,6 +414,13 @@ def render_admin_dashboard():
                             sel_grades_str = ",".join(sel_grades)
                             sel_subjects_str = ",".join(sel_subjects)
                             sel_semesters_str = ",".join(sel_semesters)
+                        elif user_role_type == 'teacher':
+                            sel_grades_str = ",".join(sel_grades)
+                            sel_subjects_str = ",".join(sel_subjects)
+                            sel_semesters_str = ",".join(sel_semesters)
+                            sel_tabs_str = ",".join(sel_tabs)
+                        else:  # Admin
+                            sel_tabs_str = ",".join(sel_tabs)
 
                         if current_role:
                             cursor.execute("""
@@ -264,7 +439,6 @@ def render_admin_dashboard():
                         st.rerun()
 
             conn.close()
-
     # ==========================================
     # TAB 2: NHẬP LIỆU HÀNG LOẠT (JSON & EXCEL)
     # ==========================================
