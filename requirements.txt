@@ -2,3 +2,4 @@ streamlit
 bcrypt
 pandas
 openpyxl
+PyGithub
