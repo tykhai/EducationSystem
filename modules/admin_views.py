@@ -7,8 +7,12 @@ import io
 import os
 import re
 import tempfile
+
 from services.db_connection import DB_PATH, get_connection
 from auth.auth_service import register_user, reset_password, toggle_user_status
+
+from services.github_sync import render_admin_github_backup_ui
+
 #BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 #DB_PATH = os.path.join(BASE_DIR, "data", "database.db")
 IMAGE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "images")
@@ -85,6 +89,35 @@ def clean_json_string(json_str):
 def render_admin_dashboard():
     #cursor = conn.cursor()
     st.title("⚙️ Trang Quản Trị Hệ Thống (Admin Dashboard)")
+
+    #1. Kích hoạt tính năng kiểm tra tự động đẩy dữ liệu (Interval Check)
+    # check_and_auto_push()
+
+    #2. Bảng điều khiển Bật/Tắt module
+    # enable_toggle = st.toggle("Kích hoạt Module Tự Động Sao Lưu", value=st.session_state.enable_auto_backup)
+    # st.session_state.enable_auto_backup = enable_toggle
+
+    # if not enable_toggle:
+        # st.info("⏸️ Module tự động sao lưu đang TẮT.")
+        # return
+
+    #3. Giao diện thông tin & Thao tác thủ công
+    # col1, col2 = st.columns(2)
+    
+    # with col1:
+        # st.markdown(f"**Repo:** `{cfg.get('GITHUB_REPO')}`")
+        # st.markdown(f"**Chu kỳ sao lưu:** Mỗi `{cfg.get('BACKUP_INTERVAL_HOURS')}` giờ")
+        
+    # with col2:
+        # if st.button("📥 Kéo (Pull) DB Mới Nhất Tải Về"):
+            # if st.checkbox("Xác nhận ghi đè dữ liệu Local?"):
+                # with st.spinner("Đang tải bản backup mới nhất..."):
+                    # if pull_latest_db_from_github():
+                        # st.rerun()
+
+        # if st.button("📤 Đẩy (Push) DB Hiện Tại Lên GitHub"):
+            # with st.spinner("Đang tải dữ liệu lên..."):
+                # push_db_to_github()
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -326,10 +359,11 @@ def render_admin_dashboard():
             conn.close()
         with sub_u4:
             st.subheader("💾 Backup & Restore")
-            sub_u4_1, sub_u4_2, sub_u4_3 = st.tabs([
+            sub_u4_1, sub_u4_2, sub_u4_3, sub_u4_4 = st.tabs([
             "💾 Backup file Database", 
-            "⬇️ Backup SQLite Backup API", 
-            "🔄 Restore file Database"
+            "⬇️ Backup SQLite API", 
+            "🔄 Restore Database",
+            "🔄 Auto"
         ])
             with sub_u4_1:
                 
@@ -362,6 +396,9 @@ def render_admin_dashboard():
                             f.write(uploaded_file.getbuffer())
                         st.success("Khôi phục thành công! Vui lòng tải lại trang.")
             
+            with sub_u4_4:
+                render_admin_github_backup_ui()
+                
     # ==========================================
     # TAB 2: NHẬP LIỆU HÀNG LOẠT (JSON & EXCEL)
     # ==========================================

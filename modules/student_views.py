@@ -733,7 +733,7 @@ def render_student_dashboard(filter_data):
                     else:
                         st.caption("✍️ Nhập công thức / câu trả lời của bạn:")
                         essay_ans_latex = simple_math_editor(key=f"essay_step_{q_id}", height=200)
-                        uploaded_file = st.file_uploader("Hoặc tải ảnh bài làm (nếu có):", type=["png", "jpg", "jpeg"])
+                        uploaded_file = st.file_uploader("Hoặc tải ảnh bài làm (nếu có):", type=["png", "jpg", "jpeg"],key=f"uploader_{q['id']}")
                         
                         if st.button(f"📤 Nộp bài & Xem đáp án câu {curr_p_idx + 1}", key=f"btn_step_es_{q_id}"):
                             if not essay_ans_latex and uploaded_file is None:
@@ -833,7 +833,7 @@ def render_student_dashboard(filter_data):
                             st.radio(f"Đáp án câu {eq['question_num']}:", opts, key=f"ex_mcq_{eq['id']}", index=None)
                         else:                            
                             essay_ans_latex = simple_math_editor(key=f"essay_{eq['id']}",height=200)
-                            uploaded_file = st.file_uploader("Hoặc tải ảnh bài làm (nếu có):", type=["png", "jpg", "jpeg"])                           
+                            uploaded_file = st.file_uploader("Hoặc tải ảnh bài làm (nếu có):", type=["png", "jpg", "jpeg"], key=f"uploader_{eq['id']}")                           
                         st.divider()
                     
                     if st.form_submit_button("Nộp Bài Thi"):                        
