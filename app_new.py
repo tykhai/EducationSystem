@@ -12,6 +12,16 @@ from modules.admin_views import render_admin_dashboard
 from modules.student_views import render_student_dashboard
 from modules.teacher_views import render_teacher_grading_dashboard
 
+from services.github_sync import pull_latest_db_from_github, check_and_auto_push
+
+# Tự động kéo database mới nhất về máy ảo chỉ 1 lần khi bắt đầu session mới
+if "db_initialized" not in st.session_state:
+    pull_latest_db_from_github()
+    st.session_state.db_initialized = True
+
+# Kiểm tra khoảng thời gian để tự động Push dữ liệu
+check_and_auto_push()
+
 st.set_page_config(page_title="Hệ Thống Học Tập THCS & THPT", page_icon="🎓", layout="wide")
 
 if "db_inited" not in st.session_state:
